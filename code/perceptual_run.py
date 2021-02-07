@@ -5,8 +5,11 @@ Created at 1/20/21
 
 Saccade FIPS experiment
 """
-from . import fips
+from fips import *
 from psychopy import visual
+
+
+
 
 
 

@@ -120,6 +120,6 @@ class FIPS:
             elif direction == "down":
                 self.frame.pos -= (self.velocity, 0)
             else:
-                raise ValueError("Direction should be one of 'vert' or 'horiz'.")
+                raise ValueError("Direction should be one of 'up', 'down', 'left', or 'right'.")
 
             self.frame.draw()
