@@ -19,7 +19,7 @@ class FIPS:
             pos=(0.0, 0.0),
             size=10,
             ori=0.0,
-            color=(0.0, 0.0, 0.0),
+            color=(-1, -1, -1),
             contrast=1.0,
             opacity=1.0,
             name=None,
@@ -33,6 +33,8 @@ class FIPS:
         self.contrast = contrast
         self.opacity = opacity
         self.name = name
+
+        self._fixation = None
         self._probes = None
         self._frame = None
 
@@ -106,7 +108,7 @@ class FIPS:
             win=self.win,
             mask='circle',
             size=radius,
-            phase = 0,
+            phase=0,
             pos=bot_pos,
             sf=0,
             ori=0,
@@ -115,6 +117,23 @@ class FIPS:
         )
 
         return probes
+
+    @property
+    def fixation(self):
+        """
+        Makes the fixation point
+
+        Returns
+        -------
+
+        """
+        fix = visual.Circle(
+            win=self.win,
+            size=.4,
+            fillColor=(-1, -1, -1),
+            pos=(0, 0),
+        )
+        return fix
 
     def move_frame(self, path_length, velocity, display_rf, direction):
         """
