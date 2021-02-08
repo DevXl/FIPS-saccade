@@ -5,7 +5,7 @@ Created at 2/6/21
 
 Testing script for saccade task
 """
-from psychopy import visual, gui, data, monitors, core, logging
+from psychopy import visual, gui, data, monitors, core, logging, info
 from psychopy.iohub.client import yload, yLoader
 from psychopy.iohub import launchHubServer
 from fips import FIPS
@@ -14,6 +14,8 @@ from pathlib import Path
 from uuid import UUID
 import pandas as pd
 import sys
+import numpy as np
+
 
 # ============================================================
 #                          SETUP
@@ -54,7 +56,7 @@ run_dir.mkdir()
 
 # files
 log_file = str(log_dir / f"sub-{sub_id}_ses-{ses}_task-{task}.log")
-run_file = str(run_dir / f"sub-{sub_id}_ses-{ses}_task-{task}.csv")
+run_file = str(run_dir / f"sub-{sub_id}_ses-{ses}_task-{task}")
 
 # Info
 sub_dlg = gui.Dlg(title="Participant Information", labelButtonOK="Register", labelButtonCancel="Quit")
@@ -86,7 +88,6 @@ if sub_dlg.OK:
     sub_params["sex"] = sub_info[8]
     sub_params["handedness"] = sub_info[9]
     sub_params["vision"] = sub_info[10]
-
 else:
     core.quit()
 
@@ -113,13 +114,45 @@ run_log = logging.LogFile(log_file, level=logging.DEBUG, filemode='w')
 logging.info(data.getDateStr())
 
 # Eye-tracker
-tracker_config = yload(open(str(config_dir / 'tracker_config.yaml'),'r'), Loader=yLoader)
+tracker_config = yload(open(str(config_dir / 'tracker_config.yaml'), 'r'), Loader=yLoader)
 hub = launchHubServer(**tracker_config)
 tracker = hub.devices.tracker
 
 # ============================================================
-#                          PROCEDURE
+#                          Stimulus
 # ============================================================
-stim = FIPS(win=win)
+stim = FIPS(win=win, pos=[0, 3], name='ExperimentFrame')
 
-probe = stim.generate_probe()
+# timing
+trial_clock = core.Clock()
+motion_cycle = 1500  # in ms for a cycle of frame motion
+saccade_times = np.linspace(start=0, stop=1500, num=6)
+delay_times = np.round(np.random.uniform(400, 600), 3)
+
+# conditions
+n_blocks = 12
+total_trials = 384
+block_clock = core.Clock()
+
+# ============================================================
+#                          Stimulus
+# ============================================================
+stabilize = 4  # number of transitions needed to stabilize the effect
+runtime_info = info.RunTimeInfo(
+    win=win,
+    refreshTest="grating",
+    verbose=True,
+    userProcsDetailed=True,
+)
+exp_handler = data.ExperimentHandler(
+    name="SaccadeExperiment",
+    version=0.1,
+    extraInfo=sub_params,
+    runtimeInfo=runtime_info,
+    savePickle=False,
+    saveWideText=True,
+    dataFileName=str(run_file)
+)
+
+win.recordFrameIntervals = True
+
