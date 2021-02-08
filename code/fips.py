@@ -23,7 +23,6 @@ class FIPS:
             contrast=1.0,
             opacity=1.0,
             name=None,
-            velocity=1.0
     ):
 
         self.win = win
@@ -34,7 +33,6 @@ class FIPS:
         self.contrast = contrast
         self.opacity = opacity
         self.name = name
-        self.velocity = velocity
         self._probes = None
         self._frame = None
 
@@ -118,7 +116,7 @@ class FIPS:
 
         return probes
 
-    def move_frame(self, scr_frames, direction, transitions):
+    def move_frame(self, path_length, velocity, display_rf, direction):
         """
         Oscillates the frame
 
@@ -126,29 +124,39 @@ class FIPS:
         ----------
         scr_frames : int
             Number of screen frames the stimulus should move for
-
-        direction : str
-            "up", "down", "left", or "right"
         """
-        # velocity is given in degrees/frame
+        # we want the flashes inside the frame
+        if path_length >= self.size:
+            raise ValueError("Path length should be smaller than frame length.")
+
+        # the frame has to turn off at the end points for the transients to flash
         flash_frames = 5
-        
-        for tr in transitions:
-            for sf in range(scr_frames):
-                if direction == "left":
-                    self.frame.pos -= (self.velocity, 0)
-                elif direction == 'right':
-                    self.frame.pos += (self.velocity, 0)
-                elif direction == "up":
-                    self.frame.pos += (0, self.velocity)
-                elif direction == "down":
-                    self.frame.pos -= (0, self.velocity)
+
+        # assuming the position of the frame is always directly above fixation
+        assert direction in ['left', 'right']
+
+        if direction == 'right':
+            init_pos = (-path_length/2, self.pos[1])
+        else:
+            init_pos = (path_length/2, self.pos[1])
+        self.frame.pos = init_pos
+
+        # number of frames to draw
+        path_frames = path_length * display_rf
+        scr_frames = path_frames + flash_frames
+
+        # draw deg/frame motion
+        for fr in range(scr_frames):
+            if fr < path_frames:
+
+                if direction == 'right':
+                    self.frame.pos += (velocity, 0)
+                    self.frame.draw()
                 else:
-                    raise ValueError("Direction should be one of 'up', 'down', 'left', or 'right'.")
-
-                self.frame.draw()
-
-
-
-    def flash_probe(self):
-        pass
+                    self.frame.pos -= (velocity, 0)
+                    self.frame.draw()
+            else:
+                self.probes["top"].draw()
+                self.probes["bot"].draw()
+            
+            self.win.flip()
