@@ -135,9 +135,9 @@ total_trials = 384
 block_clock = core.Clock()
 
 # ============================================================
-#                          Stimulus
+#                          Procedure
 # ============================================================
-stabilize = 4  # number of transitions needed to stabilize the effect
+# Experiment
 runtime_info = info.RunTimeInfo(
     win=win,
     refreshTest="grating",
@@ -154,5 +154,34 @@ exp_handler = data.ExperimentHandler(
     dataFileName=str(run_file)
 )
 
-win.recordFrameIntervals = True
+# Blocks
+conditions = [
+    {"target": "top"},
+    {"target": "bot"}
+]
+block_handlers = []
+
+for block in range(n_blocks):
+    block_handlers.append(
+        data.TrialHandler(
+        name="BlockHandler",
+        trialList=conditions,
+        nReps=total_trials/n_blocks,
+        method="fullRandom",
+        seed=block,
+        originPath=-1
+        )
+    )
+
+# ============================================================
+#                          Run
+# ============================================================
+stabilize = 4  # number of transitions needed to stabilize the effect
+
+for block in block_handlers:
+
+    win.recordFrameIntervals = True
+
+    for trial in block:
+        pass
 
