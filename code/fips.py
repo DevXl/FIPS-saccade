@@ -39,6 +39,23 @@ class FIPS:
         self._frame = None
 
     @property
+    def fixation(self):
+        """
+        Makes the fixation dot. 
+        """
+        if self._fixation is None:
+
+            self._fixation = visual.Circle(
+                win=self.win,
+                size=.4,
+                fillColor=(-1, -1, -1),
+                lineColor=(-1, -1, -1),
+                pos=(0, 0)
+            )
+        
+        return self._fixation
+
+    @property
     def frame(self):
         """
         Generates the square frame
@@ -55,7 +72,7 @@ class FIPS:
             bot_left = (self.pos[0] - self.size/2, self.pos[1] - self.size/2)
             bot_right = (self.pos[0] + self.size/2, self.pos[1] - self.size/2)
 
-            fr = visual.ShapeStim(
+            self._frame = visual.ShapeStim(
                     win=self.win,
                     lineWidth=5,
                     lineColor=self.color,
@@ -77,7 +94,7 @@ class FIPS:
                     autoDraw=False
             )
 
-        return fr
+        return self._frame
 
     @property
     def probes(self):
@@ -87,53 +104,37 @@ class FIPS:
         Returns
         -------
         """
-        probes = dict()
-        top_pos = self.pos[1] + self.size/6 + self.size/12
-        bot_pos = (self.pos[1] - self.size/2) + self.size/6 + self.size/12
-        radius = self.size/6
+        if self._probes is None:
+            self._probes = dict()
+            top_pos = self.pos[1] + self.size/6 + self.size/12
+            bot_pos = (self.pos[1] - self.size/2) + self.size/6 + self.size/12
+            radius = self.size/6
 
-        probes["top"] = visual.GratingStim(
-            win=self.win,
-            mask='circle',
-            size=radius,
-            phase = 0,
-            pos=top_pos,
-            sf=0,
-            ori=0,
-            contrast=self.contrast*.8,  # contrast 80% of the frame
-            color='blue'
-        )
+            self._probes["top"] = visual.GratingStim(
+                win=self.win,
+                mask='circle',(0.0, 0.0, 0.0)
+                size=radius,
+                phase = 0,
+                pos=top_pos,
+                sf=0,
+                ori=0,
+                contrast=self.contrast*.8,  # contrast 80% of the frame
+                color='blue'
+            )
 
-        probes["bot"] = visual.GratingStim(
-            win=self.win,
-            mask='circle',
-            size=radius,
-            phase=0,
-            pos=bot_pos,
-            sf=0,
-            ori=0,
-            contrast=self.contrast*.8,  # contrast 80% of the frame
-            color='red'
-        )
+            self._probes["bot"] = visual.GratingStim(
+                win=self.win,
+                mask='circle',
+                size=radius,
+                phase = 0,
+                pos=bot_pos,
+                sf=0,
+                ori=0,
+                contrast=self.contrast*.8,  # contrast 80% of the frame
+                color='red'
+            )
 
-        return probes
-
-    @property
-    def fixation(self):
-        """
-        Makes the fixation point
-
-        Returns
-        -------
-
-        """
-        fix = visual.Circle(
-            win=self.win,
-            size=.4,
-            fillColor=(-1, -1, -1),
-            pos=(0, 0),
-        )
-        return fix
+        return self._probes
 
     def move_frame(self, path_length, velocity, display_rf, direction):
         """
