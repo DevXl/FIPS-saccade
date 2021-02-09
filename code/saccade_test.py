@@ -5,7 +5,7 @@ Created at 2/6/21
 
 Testing script for saccade task
 """
-from psychopy import visual, gui, data, monitors, core, logging, info
+from psychopy import visual, gui, data, monitors, core, logging, info, event
 from psychopy.iohub.client import yload, yLoader
 from psychopy.iohub import launchHubServer
 from fips import FIPS
@@ -123,21 +123,27 @@ tracker = hub.devices.tracker
 # ============================================================
 stim = FIPS(win=win, pos=[0, 3], name='ExperimentFrame')
 
-# timing
-trial_clock = core.Clock()
-motion_cycle = 1500  # in ms for a cycle of frame motion
-saccade_times = np.linspace(start=0, stop=1500, num=6)
-delay_times = np.round(np.random.uniform(400, 600), 3)
-
-# conditions
-n_blocks = 12
-total_trials = 384
-block_clock = core.Clock()
+# messages
+begin_msg = visual.TextStim(win=win, text="Press any key to start.")
+between_block_msg = visual.TextStim(
+    win=win,
+    text="You just finished block {}. Number of remaining of blocks: {}.\nPress the spacebar to continue."
+    )
+finish_msg = visual.TextStim(win=win, text="Thank you for participating!")
 
 # ============================================================
 #                          Procedure
 # ============================================================
-# Experiment
+# timing
+trial_clock = core.Clock()
+motion_cycle = 1500  # in ms for a cycle of frame motion
+saccade_times = np.linspace(start=0, stop=1500, num=6)
+
+# experiment
+n_blocks = 12
+total_trials = 384
+block_clock = core.Clock()
+
 runtime_info = info.RunTimeInfo(
     win=win,
     refreshTest="grating",
@@ -156,32 +162,49 @@ exp_handler = data.ExperimentHandler(
 
 # Blocks
 conditions = [
-    {"target": "top"},
-    {"target": "bot"}
+    {"target": "top", "delay": np.round(np.random.uniform(400, 600), 3)},
+    {"target": "bot", "delay": np.round(np.random.uniform(400, 600), 3)}
 ]
 block_handlers = []
 
 for block in range(n_blocks):
-    block_handlers.append(
-        data.TrialHandler(
-        name="BlockHandler",
+    this_block = data.TrialHandler(
+        name=f"Block_{block}",
         trialList=conditions,
         nReps=total_trials/n_blocks,
         method="fullRandom",
-        seed=block,
+        # seed=block,
         originPath=-1
         )
-    )
+    block_handlers.append(this_block)
+    exp_handler.addLoop(block)
 
 # ============================================================
 #                          Run
 # ============================================================
 stabilize = 4  # number of transitions needed to stabilize the effect
+rest_dur = 30
 
-for block in block_handlers:
+# draw beginning message
+begin_msg.draw()
+event.waitKeys(keyList=["space"])
 
+# loop blocks
+for idx, block in enumerate(block_handlers):
+
+    # block rest for after the first block
+    if idx > 0:
+        between_block_msg.draw()
+        event.waitKeys(keyList=["space"])
+
+    # timing
+    block_clock.reset()
     win.recordFrameIntervals = True
 
+    # loop trials
     for trial in block:
+
+        # timing
+        trial_clock.reset()
         pass
 
