@@ -2,3 +2,7 @@
 *.code-workspace
 .idea
 .vscode
+
+# Junk files
+scratch.py
+.iohpid
