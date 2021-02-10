@@ -6,6 +6,7 @@ Created at 2/6/21
 Testing script for saccade task
 """
 from psychopy import visual, gui, data, monitors, core, logging, info, event
+from psychopy.tools.monitorunittools import deg2pix
 from psychopy.iohub.client import yload, yLoader
 from psychopy.iohub import launchHubServer
 from fips import FIPS
@@ -101,7 +102,7 @@ win = visual.Window(
     allowGUI=False,
     monitor=disp,
     screen=0,
-    units='deg',
+    units='pix',
     gamma=None,
     name='SaccadeWindow'
 )
@@ -121,14 +122,15 @@ tracker = hub.devices.tracker
 # ============================================================
 #                          Stimulus
 # ============================================================
-stim = FIPS(win=win, pos=[0, 3], name='ExperimentFrame')
+stim_size = deg2pix(degrees=10, monitor=disp)
+stim = FIPS(win=win, size=stim_size, pos=[0, 3], name='ExperimentFrame')
 
 # messages
 begin_msg = visual.TextStim(win=win, text="Press any key to start.")
 between_block_msg = visual.TextStim(
     win=win,
     text="You just finished block {}. Number of remaining of blocks: {}.\nPress the spacebar to continue."
-    )
+)
 finish_msg = visual.TextStim(win=win, text="Thank you for participating!")
 
 # ============================================================
@@ -187,24 +189,36 @@ rest_dur = 30
 
 # draw beginning message
 begin_msg.draw()
+begin_time = win.flip()
+hub.sendMessageEvent(text="EXPERIMENT_START", sec_time=begin_time)
 event.waitKeys(keyList=["space"])
 
 # loop blocks
 for idx, block in enumerate(block_handlers):
 
-    # block rest for after the first block
+    # calibrate the eye tracker
+    tracker.runSetupProcedure()
+
+    # initiate eye tracker
+    tracker.setRecordingState(True)
+
+    # block setup
     if idx > 0:
         between_block_msg.draw()
         event.waitKeys(keyList=["space"])
-
-    # timing
-    block_clock.reset()
+    hub.clearEvents()
     win.recordFrameIntervals = True
+    block_clock.reset()
 
     # loop trials
     for trial in block:
 
         # timing
         trial_clock.reset()
-        pass
+        
+        # show stimuli
+        stim.fixation.autoDraw = True
+
+        # check fixation
+
 
