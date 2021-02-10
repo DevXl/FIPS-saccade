@@ -125,12 +125,16 @@ tracker = hub.devices.tracker
 stim_size = deg2pix(degrees=10, monitor=disp)
 stim = FIPS(win=win, size=stim_size, pos=[0, 3], name='ExperimentFrame')
 
+removal_region_size = deg2pix(degrees=2, monitor=disp)
+removal_region = visual.Circle(win=win, lineColor=[0, 0, 0], radius=removal_region_size)
+
 # messages
 begin_msg = visual.TextStim(win=win, text="Press any key to start.")
 between_block_msg = visual.TextStim(
     win=win,
     text="You just finished block {}. Number of remaining of blocks: {}.\nPress the spacebar to continue."
 )
+fixation_msg = visual.TextStim(win=win, text="Fixate on the dot.", pos=[0, -200])
 finish_msg = visual.TextStim(win=win, text="Thank you for participating!")
 
 # ============================================================
@@ -164,8 +168,8 @@ exp_handler = data.ExperimentHandler(
 
 # Blocks
 conditions = [
-    {"target": "top", "delay": np.round(np.random.uniform(400, 600), 3)},
-    {"target": "bot", "delay": np.round(np.random.uniform(400, 600), 3)}
+    {"target": "top", "delay": np.round(np.random.uniform(400, 600))},
+    {"target": "bot", "delay": np.round(np.random.uniform(400, 600))}
 ]
 block_handlers = []
 
@@ -185,7 +189,9 @@ for block in range(n_blocks):
 #                          Run
 # ============================================================
 stabilize = 4  # number of transitions needed to stabilize the effect
-rest_dur = 30
+frame_path = deg2pix(degrees=8, monitor=disp)  # the length of the path that frame moves
+v_frame = deg2pix(degrees=1, monitor=disp)  # how fast the frame moves
+disp_rf = 60
 
 # draw beginning message
 begin_msg.draw()
@@ -218,7 +224,21 @@ for idx, block in enumerate(block_handlers):
         
         # show stimuli
         stim.fixation.autoDraw = True
+        trial_start_time = win.flip()
 
         # check fixation
+        fixate, msg = check_fixation(tracker, stim.fixation)
+
+        # delay period
+        if fixate:
+            core.wait(trial["delay"] / 1000)
+        else:
+            fixation_msg.text = msg
+
+        # frame starts moving
+        fixate, msg = check_fixation(tracker, stim.fixation)
+        if fixate:
+            stim.move_frame(path_length=frame_path, velocity=v_frame, display_rf=disp_rf, direction='right')
+
 
 
