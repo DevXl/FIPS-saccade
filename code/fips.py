@@ -47,7 +47,7 @@ class FIPS:
 
             self._fixation = visual.Circle(
                 win=self.win,
-                size=.4,
+                size=self.size/10,
                 fillColor=(-1, -1, -1),
                 lineColor=(-1, -1, -1),
                 pos=(0, 0)
@@ -112,7 +112,7 @@ class FIPS:
 
             self._probes["top"] = visual.GratingStim(
                 win=self.win,
-                mask='circle',(0.0, 0.0, 0.0)
+                mask='circle',
                 size=radius,
                 phase = 0,
                 pos=top_pos,
