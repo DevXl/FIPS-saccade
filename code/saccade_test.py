@@ -167,10 +167,17 @@ exp_handler = data.ExperimentHandler(
 )
 
 # Blocks
-conditions = [
-    {"target": "top", "delay": np.round(np.random.uniform(400, 600))},
-    {"target": "bot", "delay": np.round(np.random.uniform(400, 600))}
-]
+conditions = []
+velocities = [1, 1.5, 2]
+for target in ["top", "bot"]:
+    for velocity in velocities:
+        conditions.append(
+            {
+                "target": target,
+                "velocity": velocity,
+                "delay": np.round(np.random.uniform(400, 600))
+            }
+        )
 block_handlers = []
 
 for block in range(n_blocks):
@@ -219,21 +226,21 @@ for idx, block in enumerate(block_handlers):
     # loop trials
     for trial in block:
 
-        # timing
         trial_clock.reset()
+        bad_trial = False
+
+        # 1) Fixation period
         delay_frames = trial["delay"] * display_rf
         
-        # show stimuli
         stim.fixation.autoDraw = True
         trial_start_time = win.flip()
 
-        # delay period
+        # delay
         fix_status, feedback = check_fixation(tracker, stim.fixation, display_rf)
 
-        # frame starts moving
-        fixate, msg = check_fixation(tracker, stim.fixation)
-        if fixate:
-            stim.move_frame(path_length=frame_path, velocity=v_frame, display_rf=disp_rf, direction='right')
+        # 2) Frame appears and moves
+        if fix_status:
+            stim.move_frame(path_length=frame_path, velocity=v_frame, mon_rf=display_rf, direction='right')
 
 
 
