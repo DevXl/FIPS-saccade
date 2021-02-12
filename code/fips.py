@@ -136,14 +136,24 @@ class FIPS:
 
         return self._probes
 
-    def move_frame(self, path_length, velocity, display_rf, direction):
+    def move_frame(self, path_length, velocity, mon_rf, direction):
         """
         Oscillates the frame
 
         Parameters
         ----------
-        scr_frames : int
+        path_length : float
             Number of screen frames the stimulus should move for
+
+        velocity : float
+
+        mon_rf : int
+
+        direction : str
+
+        Returns
+        -------
+        None
         """
         # we want the flashes inside the frame
         if path_length >= self.size:
@@ -162,11 +172,11 @@ class FIPS:
         self.frame.pos = init_pos
 
         # number of frames to draw
-        path_frames = path_length * display_rf
+        path_frames = path_length * mon_rf
         scr_frames = path_frames + flash_frames
 
         # draw deg/frame motion
-        for fr in range(scr_frames):
+        for fr in range(int(scr_frames)):
             if fr < path_frames:
 
                 if direction == 'right':
@@ -180,3 +190,60 @@ class FIPS:
                 self.probes["bot"].draw()
             
             self.win.flip()
+
+    def cue_period(self, path_length, velocity, n_frames, n_stabilize, mon_rf, tracker):
+        """
+
+        Parameters
+        ----------
+        path_length
+        velocity
+        n_frames
+        n_stabilize
+        mon_rf
+        tracker
+
+        Returns
+        -------
+
+        """
+        # we want the flashes inside the frame
+        if path_length >= self.size:
+            raise ValueError("Path length should be smaller than frame length.")
+
+        # starting position
+        init_pos = (-path_length / 2, self.pos[1])
+        self.frame.pos = init_pos
+
+        # sections in frame durations
+        move_dur = path_length * 1/velocity * mon_rf
+        flash_dur = 5
+        total_cycle_frames = (move_dur + flash_dur) * 2
+
+        move_right_frames = [i for i in range(move_dur)]
+        flash_right_frames = [i for i in range(move_dur, move_dur + flash_dur)]
+        move_left_frames = [i for i in range(flash_right_frames[-1], flash_right_frames[-1] + move_dur)]
+        flash_left_frames = [i for i in range(move_left_frames[-1], move_right_frames[-1] + flash_dur)]
+
+        for fr in range(n_frames):
+
+            # check fixation every frame
+            # get eye position
+            gaze_pos = tracker.getLastGazePosition()
+
+            # check if it's valid
+            valid_gaze_pos = isinstance(gaze_pos, (tuple, list))
+
+            # run the procedure while fixating
+            if valid_gaze_pos:
+                if self.fixation.contains(gaze_pos):
+
+                    for reversal in n_stabilize:
+                        pass
+
+                else:
+                    msg = "Please fixate"
+            else:
+                msg = "Run calibration procedure."
+
+
