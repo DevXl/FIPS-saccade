@@ -191,7 +191,7 @@ for block in range(n_blocks):
 stabilize = 4  # number of transitions needed to stabilize the effect
 frame_path = deg2pix(degrees=8, monitor=disp)  # the length of the path that frame moves
 v_frame = deg2pix(degrees=1, monitor=disp)  # how fast the frame moves
-disp_rf = 60
+display_rf = 60
 
 # draw beginning message
 begin_msg.draw()
@@ -221,19 +221,14 @@ for idx, block in enumerate(block_handlers):
 
         # timing
         trial_clock.reset()
+        delay_frames = trial["delay"] * display_rf
         
         # show stimuli
         stim.fixation.autoDraw = True
         trial_start_time = win.flip()
 
-        # check fixation
-        fixate, msg = check_fixation(tracker, stim.fixation)
-
         # delay period
-        if fixate:
-            core.wait(trial["delay"] / 1000)
-        else:
-            fixation_msg.text = msg
+        fix_status, feedback = check_fixation(tracker, stim.fixation, display_rf)
 
         # frame starts moving
         fixate, msg = check_fixation(tracker, stim.fixation)
