@@ -20,3 +20,38 @@ def make_test_monitor():
 
     return mon
 
+
+def check_fixation(tracker, region, n_frames):
+    """
+    Checks whether the subject is fixating on a region of the screen or not
+    Parameters
+    ----------
+    tracker
+    region
+    n_frames
+
+    Returns
+    -------
+
+    """
+    fixate = False
+    msg = ""
+
+    for frame in n_frames:
+
+        # get eye position
+        gaze_pos = tracker.getLastGazePosition()
+
+        # check if it's valid
+        valid_gaze_pos = isinstance(gaze_pos, (tuple, list))
+
+        # run the procedure while fixating
+        if valid_gaze_pos:
+            if region.contains(gaze_pos):
+                fixate = True
+            else:
+                msg = "Please fixate"
+        else:
+            msg = "Run calibration procedure."
+
+    return fixate, msg
