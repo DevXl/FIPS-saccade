@@ -151,7 +151,7 @@ class FIPS:
 
         return self._probes
 
-    def move_frame(self, mon_rf, direction):
+    def move_frame(self, n_frames, direction):
         """
         Oscillates the frame
 
@@ -174,24 +174,22 @@ class FIPS:
             init_pos = (self.path_length/2, self.pos[1])
         self.frame.pos = init_pos
 
-        # number of frames to draw
-        path_frames = self.path_length * mon_rf
-        scr_frames = path_frames + self.flash_frames
-
         # draw deg/frame motion
-        for fr in range(int(scr_frames)):
-            if fr < path_frames:
-
-                if direction == 'right':
-                    self.frame.pos += (self.velocity, 0)
-                    self.frame.draw()
-                else:
-                    self.frame.pos -= (self.velocity, 0)
-                    self.frame.draw()
+        for _ in range(n_frames):
+            if direction == 'right':
+                self.frame.pos += (self.velocity, 0)
             else:
-                self.probes["top"].draw()
-                self.probes["bot"].draw()
-            
+                self.frame.pos -= (self.velocity, 0)
+
+            self.frame.draw()
+            self.win.flip()
+
+    def flash_probes(self, n_frames):
+        """
+        """
+        for _ in range(n_frames):
+            self.probes["top"].draw()
+            self.probes["bot"].draw()
             self.win.flip()
 
 
@@ -211,10 +209,7 @@ class FIPS:
 
         """
         bad_trial = False
-
-        # we want the flashes inside the frame
-        if self.path_length >= self.size:
-            raise ValueError("Path length should be smaller than frame length.")
+        feedback = ""
 
         # starting position
         self.frame.pos = self.init_pos
@@ -222,8 +217,8 @@ class FIPS:
         # sections in frame durations
         move_right_frames = [i for i in range(self.move_dur)]
         flash_right_frames = [i for i in range(self.move_dur, self.move_dur + self.flash_frames)]
-        move_left_frames = [i for i in range(flash_right_frames[-1], flash_right_frames[-1] + self.move_dur)]
-        flash_left_frames = [i for i in range(move_left_frames[-1], move_right_frames[-1] + self.flash_frames)]
+        move_left_frames = [i for i in range(flash_right_frames[-1]+1, flash_right_frames[-1] + self.move_dur)]
+        flash_left_frames = [i for i in range(move_left_frames[-1]+1, move_right_frames[-1] + self.flash_frames)]
 
         get_all_frames = lambda frames: [fr + (tr * self.total_cycle_frames) for fr in frames for tr in range(n_stabilize)]
         all_right_frames = get_all_frames(move_right_frames)
@@ -251,23 +246,35 @@ class FIPS:
                         self.frame.draw()
                     elif scr_frame in all_flash_frames:
                         self.probes["top"].draw()
-                        self.probes["Bot"].draw()
+                        self.probes["bot"].draw()
                     
                     self.win.flip()
                 else:
-                    msg = "Bad fixation."
+                    feedback = "Bad fixation."
                     bad_trial = True
             else:
-                msg = "Run calibration procedure."
+                feedback = "Run calibration procedure."
                 bad_trial = True
 
+        return bad_trial, feedback
 
-    def cue_period(self, tracker):
+
+    def cue_period(self, duration, tracker):
         """
         
         """
         # starting position
         self.frame.pos = self.init_pos
+
+        n_frames = duration * self.refresh_rate
+
+        if n_frames < self.move_dur:
+            self.move_frame(n_frames, "right")
+        else:
+            left_frames = n_frames - self.move_dur
+            self.move_frame(self.move_dur, "right")
+            self.move_frame(left_frames, "left")
         
+
 
         
