@@ -175,7 +175,8 @@ for target in ["top", "bot"]:
             {
                 "target": target,
                 "velocity": velocity,
-                "delay": np.round(np.random.uniform(400, 600))
+                "delay": np.round(np.random.uniform(400, 600)),
+                "t_cue": np.random.choice(saccade_times)
             }
         )
 block_handlers = []
@@ -195,10 +196,12 @@ for block in range(n_blocks):
 # ============================================================
 #                          Run
 # ============================================================
-stabilize = 4  # number of transitions needed to stabilize the effect
-frame_path = deg2pix(degrees=8, monitor=disp)  # the length of the path that frame moves
+n_stabilize = 4  # number of transitions needed to stabilize the effect
+path_length = deg2pix(degrees=8, monitor=disp)  # the length of the path that frame moves
 v_frame = deg2pix(degrees=1, monitor=disp)  # how fast the frame moves
 display_rf = 60
+flash_frames = 5
+saccade_dur = 600
 
 # draw beginning message
 begin_msg.draw()
@@ -219,6 +222,7 @@ for idx, block in enumerate(block_handlers):
     if idx > 0:
         between_block_msg.draw()
         event.waitKeys(keyList=["space"])
+    
     hub.clearEvents()
     win.recordFrameIntervals = True
     block_clock.reset()
@@ -226,21 +230,28 @@ for idx, block in enumerate(block_handlers):
     # loop trials
     for trial in block:
 
-        trial_clock.reset()
-        bad_trial = False
+        trial_durs = np.asarray([
+            trial["delay"],  # fixation period
+            (n_stabilize * path_length / v_frame) * 2,  # stabilization period
+            flash_frames * 2,  # stabilization period
+            trial["t_cue"],  # cue period
+            saccade_dur,  # saccade
+        ])
 
-        # 1) Fixation period
-        delay_frames = trial["delay"] * display_rf
-        
-        stim.fixation.autoDraw = True
-        trial_start_time = win.flip()
+        n_frames = trial_durs.sum() * display_rf
 
-        # delay
-        fix_status, feedback = check_fixation(tracker, stim.fixation, display_rf)
+        # detect fixation
+        fixate = detect_fixation(tracker, stim.fixation)
 
-        # 2) Frame appears and moves
-        if fix_status:
-            stim.move_frame(path_length=frame_path, velocity=v_frame, mon_rf=display_rf, direction='right')
+        if fixate:
+            for fr in range(n_frames):
+                
+                # get eye position
+                gaze_pos = tracker.getLastGazePosition()
 
+                # check if it's valid
+                valid_gaze_pos = isinstance(gaze_pos, (tuple, list))
 
-
+                # run the procedure while fixating
+                if valid_gaze_pos:
+                    if self.fixation.contains(gaze_pos):
