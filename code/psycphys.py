@@ -21,9 +21,10 @@ def make_test_monitor():
     return mon
 
 
-def check_fixation(tracker, region, n_frames):
+def detect_fixation(tracker, region):
     """
     Checks whether the subject is fixating on a region of the screen or not
+    
     Parameters
     ----------
     tracker
@@ -37,7 +38,7 @@ def check_fixation(tracker, region, n_frames):
     fixate = False
     msg = ""
 
-    for frame in n_frames:
+    for _ in range(10):
 
         # get eye position
         gaze_pos = tracker.getLastGazePosition()
