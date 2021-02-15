@@ -47,6 +47,7 @@ class FIPS:
         self._fixation = None
         self._probes = None
         self._frame = None
+        self._motion_seq = None
 
         self.move_dur = self.path_length * (1/self.velocity) * self.refresh_rate
         self.total_cycle_frames = (self.move_dur + self.flash_frames) * 2
@@ -151,38 +152,30 @@ class FIPS:
 
         return self._probes
 
-    def move_frame(self, n_frames, direction):
+    def move_frame(self, scr_frame, sequence):
         """
         Oscillates the frame
 
         Parameters
         ----------
-        mon_rf : int
+        scr_frame : int
 
-        direction : str
+        sequence : str
 
         Returns
         -------
         None
         """
         # assuming the position of the frame is always directly above fixation
-        assert direction in ['left', 'right']
-
-        if direction == 'right':
-            init_pos = (-self.path_length/2, self.pos[1])
-        else:
-            init_pos = (self.path_length/2, self.pos[1])
-        self.frame.pos = init_pos
-
-        # draw deg/frame motion
-        for _ in range(n_frames):
-            if direction == 'right':
-                self.frame.pos += (self.velocity, 0)
-            else:
-                self.frame.pos -= (self.velocity, 0)
-
+        if scr_frame in sequence["right"]:
+            self.frame.pos += (self.velocity, 0)
             self.frame.draw()
-            self.win.flip()
+        elif scr_frame in sequence["left"]:
+            self.frame.pos -= (self.velocity, 0)
+            self.frame.draw()
+        elif scr_frame in sequence["flash"]:
+            self.probes["top"].draw()
+            self.probes["bot"].draw()
 
     def flash_probes(self, n_frames):
         """
@@ -274,3 +267,5 @@ class FIPS:
             left_frames = n_frames - self.move_dur
             self.move_frame(self.move_dur, "right")
             self.move_frame(left_frames, "left")
+
+
