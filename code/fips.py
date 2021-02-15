@@ -192,7 +192,6 @@ class FIPS:
             self.probes["bot"].draw()
             self.win.flip()
 
-
     def stabilize_period(self, n_stabilize, tracker):
         """
 
@@ -220,7 +219,9 @@ class FIPS:
         move_left_frames = [i for i in range(flash_right_frames[-1]+1, flash_right_frames[-1] + self.move_dur)]
         flash_left_frames = [i for i in range(move_left_frames[-1]+1, move_right_frames[-1] + self.flash_frames)]
 
-        get_all_frames = lambda frames: [fr + (tr * self.total_cycle_frames) for fr in frames for tr in range(n_stabilize)]
+        def get_all_frames(frames):
+            return [fr + (tr * self.total_cycle_frames) for fr in frames for tr in range(n_stabilize)]
+
         all_right_frames = get_all_frames(move_right_frames)
         all_left_frames = get_all_frames(move_left_frames)
         all_flash_frames = get_all_frames((flash_left_frames + flash_right_frames))
@@ -258,7 +259,6 @@ class FIPS:
 
         return bad_trial, feedback
 
-
     def cue_period(self, duration, tracker):
         """
         
@@ -274,7 +274,3 @@ class FIPS:
             left_frames = n_frames - self.move_dur
             self.move_frame(self.move_dur, "right")
             self.move_frame(left_frames, "left")
-        
-
-
-        
