@@ -1,0 +1,10 @@
+# IDEs
+*.code-workspace
+.idea/
+.vscode/
+
+# Junk files
+scratch.py
+code/.iohpid
+**/*.iml
+**/*.xml
