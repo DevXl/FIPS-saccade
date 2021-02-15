@@ -196,12 +196,17 @@ for block in range(n_blocks):
 # ============================================================
 #                          Run
 # ============================================================
+# Runtime parameters
 n_stabilize = 4  # number of transitions needed to stabilize the effect
 path_length = deg2pix(degrees=8, monitor=disp)  # the length of the path that frame moves
-v_frame = deg2pix(degrees=1, monitor=disp)  # how fast the frame moves
 display_rf = 60
-flash_frames = 5
+flash_dur = 250
+v_frame = path_length / (motion_cycle - 2*flash_dur)
 saccade_dur = 600
+
+# Calculate frames for each stage
+# 1) fixation period
+fixation_frames = [i for i in range()]
 
 # draw beginning message
 begin_msg.draw()
@@ -230,28 +235,107 @@ for idx, block in enumerate(block_handlers):
     # loop trials
     for trial in block:
 
+        # quit the trial if this is set to True anywhere
+        bad_trials = []
+
         trial_durs = np.asarray([
             trial["delay"],  # fixation period
-            (n_stabilize * path_length / v_frame) * 2,  # stabilization period
-            flash_frames * 2,  # stabilization period
+            2 * n_stabilize * motion_cycle,  # stabilization period
             trial["t_cue"],  # cue period
-            saccade_dur,  # saccade
+            saccade_dur  # Saccade period
         ])
 
-        n_frames = trial_durs.sum() * display_rf
+        trial_frames = trial_durs * display_rf / 1000
+        print(f"trial frames: {trial_frames}")
+
+        n_total_frames = trial_frames.sum()
+
+        fixation_frames = [i for i in range(trial_frames[0])]
+
+        stab_frames = [i for i in range(fixation_frames[-1]+1, trial_frames[1])]
+        stab_seq = make_motion_seq(
+            path_dur=int(path_length * (1/v_frame) * display_rf / 1000),
+            flash_dur=int(flash_dur * display_rf / 1000),
+            n_repeat=n_stabilize + 1,  # +1 because of the cue period
+            total_cycle=motion_cycle * display_rf / 1000
+        )
+
+        cue_frames = [i for i in range(stab_frames[-1]+1, trial_frames[2])]
+
+        saccade_frames = [i for i in range(cue_frames[-1]+1, trial_frames[3])]
+        saccade_seq = make_motion_seq(
+            path_dur=int(path_length * (1 / v_frame) * display_rf / 1000),
+            flash_dur=int(flash_dur * display_rf / 1000),
+            n_repeat=1,
+            total_cycle=motion_cycle * display_rf / 1000
+        )
 
         # detect fixation
-        fixate = detect_fixation(tracker, stim.fixation)
+        fixate = False
+        stim.fixation.autoDraw = True
+        win.flip()
 
-        if fixate:
-            for fr in range(n_frames):
-                
-                # get eye position
-                gaze_pos = tracker.getLastGazePosition()
+        while not fixate:
+            fixate, msg = detect_fixation(tracker, stim.fixation)
+            fixation_msg.text = msg
+            fixation_msg.draw()
+            win.flip()
 
-                # check if it's valid
-                valid_gaze_pos = isinstance(gaze_pos, (tuple, list))
+        fixation_msg.text = ""
+        fixation_msg.draw()
+        stim.fixation.autoDraw = False
+        win.flip()
 
-                # run the procedure while fixating
-                if valid_gaze_pos:
-                    if self.fixation.contains(gaze_pos):
+        for fr in range(n_total_frames):
+
+            # get eye position
+            gaze_pos = tracker.getLastGazePosition()
+
+            # check if it's valid
+            valid_gaze_pos = isinstance(gaze_pos, (tuple, list))
+
+            if valid_gaze_pos:
+
+                fix_ok = False
+
+                # 1) FIXATION PERIOD
+                if fr in fixation_frames:
+                    stim.fixation.draw()
+
+                    if stim.fixation.contains(gaze_pos):
+                        fix_ok = True
+                    else:
+                        bad_trials.append(trial)
+                        try:
+                            block.next()
+                        except StopIteration:
+                            print("End of Block")
+
+                # 2) STABILIZATION AND CUE PERIOD
+                elif fr in (stab_frames + cue_frames):
+
+                    stim.move_frame(fr, stab_seq)
+
+                    stim.fixation.draw()
+                    if stim.fixation.contains(gaze_pos):
+                        fix_ok = True
+                    else:
+                        bad_trials.append(trial)
+                        try:
+                            block.next()
+                        except StopIteration:
+                            print("End of Block")
+
+                # 3) SACCADE PERIOD
+                elif fr in saccade_frames:
+                    if removal_region.contains(gaze_pos):
+                        stim.move_frame(fr, saccade_seq)
+
+                exp_handler.nextEntry()
+
+    tracker.setRecordingState(False)
+    win.recordFrameIntervals = False
+
+exp_handler.saveAsWideText(fileName=str(run_file))
+win.close()
+core.quit()
