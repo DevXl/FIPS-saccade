@@ -12,7 +12,6 @@ from psychopy.iohub import launchHubServer
 from fips import FIPS
 from psycphys import *
 from pathlib import Path
-from uuid import UUID
 import pandas as pd
 import sys
 import numpy as np
@@ -203,10 +202,6 @@ display_rf = 60
 flash_dur = 250
 v_frame = path_length / (motion_cycle - 2*flash_dur)
 saccade_dur = 600
-
-# Calculate frames for each stage
-# 1) fixation period
-fixation_frames = [i for i in range()]
 
 # draw beginning message
 begin_msg.draw()
