@@ -5,7 +5,10 @@
 
 # Junk files
 scratch.py
-code/.iohpid
 **/*.iml
 **/*.xml
 **/*.pyc
+
+# Cache
+code/.iohpid
+code/_pycache/
