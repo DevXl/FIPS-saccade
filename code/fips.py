@@ -63,7 +63,7 @@ class FIPS:
 
             self._fixation = visual.Circle(
                 win=self.win,
-                size=self.size/10,
+                size=self.size/20,
                 fillColor=(-1, -1, -1),
                 lineColor=(-1, -1, -1),
                 pos=(0, 0)
