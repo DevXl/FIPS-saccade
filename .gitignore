@@ -11,4 +11,4 @@ scratch.py
 
 # Cache
 code/.iohpid
-code/_pycache/
+code/_pycache_/
