@@ -90,7 +90,7 @@ win = visual.Window(
     fullscr=False,
     allowGUI=False,
     monitor=disp,
-    screen=0,
+    screen=1,
     units='pix',
     gamma=None,
     name='SaccadeWindow'
@@ -108,12 +108,22 @@ logging.info(f"Session: {ses}")
 logging.info("==========================================")
 
 # Eye-tracker
-try:
-    tracker_config = yload(open(str(config_dir / 'tracker_config.yaml'), 'r'), Loader=yLoader)
-    hub = launchHubServer(**tracker_config)
-    tracker = hub.devices.tracker
-except Exception as e:
-    logging.error(f"Could not initiate eye tracking: {e}")
+# try:
+#     tracker_config = yload(open(str(config_dir / 'tracker_config.yaml'), 'r'), Loader=yLoader)
+#     hub = launchHubServer(**tracker_config)
+#     tracker = hub.getDevice('tracker')
+#     print(tracker)
+# except Exception as e:
+#     logging.error(f"Could not initiate eye tracking: {e}")
+TRACKER = 'eyelink'
+eyetracker_config = dict(name='tracker')
+tracker_config = None
+eyetracker_config['model_name'] = 'EYELINK 1000 DESKTOP'
+eyetracker_config['simulation_mode'] = False
+eyetracker_config['runtime_settings'] = dict(sampling_rate=1000, track_eyes='RIGHT')
+tracker_config = {'eyetracker.hw.sr_research.eyelink.EyeTracker':eyetracker_config}
+hub = launchHubServer(**tracker_config)
+tracker = hub.getDevice('tracker')
 
 # ============================================================
 #                          Stimulus
@@ -122,14 +132,14 @@ stim_size = deg2pix(degrees=10, monitor=disp)
 stim = FIPS(win=win, size=stim_size, pos=[0, 3], name='ExperimentFrame')
 
 crit_region_size = deg2pix(degrees=2, monitor=disp)
-crit_region = visual.Circle(win=win, lineColor=[0, 0, 0], radius=crit_region_size)
+crit_region = visual.Circle(win=win, lineColor=[0, 0, 0], radius=crit_region_size, autoLog=False)
 
 # messages
-begin_msg = visual.TextStim(win=win, text="Press any key to start.")
+begin_msg = visual.TextStim(win=win, text="Press any key to start.", autoLog=False)
 between_block_txt = "You just finished block {}. Number of remaining of blocks: {}.\nPress the spacebar to continue."
-between_block_msg = visual.TextStim(win=win)
-fixation_msg = visual.TextStim(win=win, text="Fixate on the dot.", pos=[0, -200])
-finish_msg = visual.TextStim(win=win, text="Thank you for participating!")
+between_block_msg = visual.TextStim(win=win, autoLog=False)
+fixation_msg = visual.TextStim(win=win, text="Fixate on the dot.", pos=[0, -200], autoLog=False)
+finish_msg = visual.TextStim(win=win, text="Thank you for participating!", autoLog=False)
 
 # ============================================================
 #                          Procedure
@@ -140,8 +150,10 @@ motion_cycle = 1500  # in ms for a cycle of frame motion
 saccade_times = np.linspace(start=0, stop=1500, num=6)
 
 # experiment
-n_blocks = 12
-total_trials = 384
+# n_blocks = 12
+n_blocks = 1
+# total_trials = 384
+total_trials = 10
 block_clock = core.Clock()
 
 runtime_info = info.RunTimeInfo(
@@ -185,7 +197,7 @@ for block in range(n_blocks):
         originPath=-1
         )
     block_handlers.append(this_block)
-    exp_handler.addLoop(block)
+    exp_handler.addLoop(this_block)
 
 # ============================================================
 #                          Run
@@ -241,9 +253,9 @@ for idx, block in enumerate(block_handlers):
 
         n_total_frames = trial_frames.sum()
 
-        fixation_frames = [i for i in range(trial_frames[0])]
+        fixation_frames = [i for i in range(int(trial_frames[0]))]
 
-        stab_frames = [i for i in range(fixation_frames[-1]+1, trial_frames[1])]
+        stab_frames = [i for i in range(int(fixation_frames[-1])+1, int(trial_frames[1]))]
         stab_seq = make_motion_seq(
             path_dur=int(path_length * (1/v_frame) * display_rf / 1000),
             flash_dur=int(flash_dur * display_rf / 1000),
@@ -251,9 +263,10 @@ for idx, block in enumerate(block_handlers):
             total_cycle=motion_cycle * display_rf / 1000
         )
 
-        cue_frames = [i for i in range(stab_frames[-1]+1, trial_frames[2])]
+        cue_frames = [i for i in range(int(stab_frames[-1]+1), int(trial_frames[2]+stab_frames[-1]+1))]
 
-        saccade_frames = [i for i in range(cue_frames[-1]+1, trial_frames[3])]
+        # print((stab_frames[-1]+1), (int(trial_frames[2]+stab_frames[-1]+1)))
+        saccade_frames = [i for i in range(int(cue_frames[-1])+1, int(trial_frames[3]+cue_frames[-1])+1)]
         saccade_seq = make_motion_seq(
             path_dur=int(path_length * (1 / v_frame) * display_rf / 1000),
             flash_dur=int(flash_dur * display_rf / 1000),
@@ -278,7 +291,7 @@ for idx, block in enumerate(block_handlers):
         stim.fixation.autoDraw = False
         win.flip()
 
-        for fr in range(n_total_frames):
+        for fr in range(int(n_total_frames)):
 
             # get eye position
             gaze_pos = tracker.getLastGazePosition()
@@ -320,7 +333,7 @@ for idx, block in enumerate(block_handlers):
 
                 # 3) SACCADE PERIOD
                 elif fr in saccade_frames:
-                    if removal_region.contains(gaze_pos):
+                    if crit_region.contains(gaze_pos):
                         stim.move_frame(fr, saccade_seq)
 
                 exp_handler.nextEntry()
@@ -328,6 +341,8 @@ for idx, block in enumerate(block_handlers):
     tracker.setRecordingState(False)
     win.recordFrameIntervals = False
 
+tracker.setConnectionState(False)
 exp_handler.saveAsWideText(fileName=str(run_file))
+hub.quit()
 win.close()
 core.quit()
