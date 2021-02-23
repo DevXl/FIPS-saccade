@@ -1,8 +1,6 @@
 eyetracker.hw.sr_research.eyelink.EyeTracker:
   name: Soltani Eyelink 
   enable: True
-  saveEvents: True
-  streamEvents: True
   auto_report_events: False
   event_buffer_length: 2048
   device_timer:
@@ -26,7 +24,7 @@ eyetracker.hw.sr_research.eyelink.EyeTracker:
       outer_color: [255, 255, 255, 255]
       inner_color: [0, 0, 0, 255]
   network_settings: 100.1.1.1
-  default_native_data_file_name: et_data
+  default_native_data_file_name: fips_saccade
   simulation_mode: True
   enable_interface_without_connection: False
   runtime_settings:
