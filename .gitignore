@@ -8,3 +8,4 @@ scratch.py
 code/.iohpid
 **/*.iml
 **/*.xml
+**/*.pyc
