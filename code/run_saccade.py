@@ -10,7 +10,7 @@ from psychopy.tools.monitorunittools import deg2pix
 from psychopy.iohub.client import yload, yLoader
 from psychopy.iohub import launchHubServer
 from fips import FIPS
-from psycphys import *
+from utils import *
 from pathlib import Path
 import pandas as pd
 import sys

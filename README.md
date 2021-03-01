@@ -6,8 +6,8 @@ This repository contains the experiment code, data, and analysis code for the FI
 
 Details of the methodology and procedure is found in `MEHTOD.md` file. Psychophysical (perceptual task) and 
 eye-tracking (Saccade task) measurements were collected in separate sessions (two sessions per each). There were 
-also two training sessions before each part of the experiment, so the order of sessions were `perceptual-training --> 
-peceptual-task-1 --> perceptual-task-2 --> saccade-training --> saccade-task-1 --> saccade-task-2`.
+also two training sessions before each part of the experiment, so the order of sessions were `perceptual-training -> 
+peceptual-task-1 -> perceptual-task-2 -> saccade-training -> saccade-task-1 -> saccade-task-2`.
 
 _TODO: {experiment flow figure}_
 
