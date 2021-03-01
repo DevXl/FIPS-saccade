@@ -5,16 +5,16 @@ Created at 2/6/21
 
 Testing script for saccade task
 """
-from psychopy import visual, gui, data, monitors, core, logging, info, event
-from psychopy.tools.monitorunittools import deg2pix
-from psychopy.iohub.client import yload, yLoader
-from psychopy.iohub import launchHubServer
-from fips import FIPS
-from utils import *
 from pathlib import Path
 import pandas as pd
 import sys
 import numpy as np
+
+from psychopy import visual, gui, data, monitors, core, logging, info, event
+from psychopy.tools.monitorunittools import deg2pix
+from pygaze import eyetracker, libscreen, libtime
+
+from fips import FIPS
 
 # ============================================================
 #                          SETUP

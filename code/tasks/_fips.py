@@ -269,3 +269,38 @@ class FIPS:
             self.move_frame(left_frames, "left")
 
 
+# =================================================================
+#                   Some utility functions
+# =================================================================
+def make_motion_seq(path_dur, flash_dur, n_repeat, total_cycle):
+    """
+    Makes a sequence of indexes for different stages of the frame motion
+
+    Parameters
+    ----------
+    path_dur
+    flash_dur
+    n_repeat
+    total_cycle
+
+    Returns
+    -------
+
+    """
+
+    # sections
+    move_right_frames = [i for i in range(path_dur)]
+    flash_right_frames = [i for i in range(path_dur, path_dur + flash_dur)]
+    move_left_frames = [i for i in range(flash_right_frames[-1] + 1, flash_right_frames[-1] + path_dur)]
+    flash_left_frames = [i for i in range(move_left_frames[-1] + 1, move_right_frames[-1] + flash_dur)]
+
+    def get_all_frames(frames):
+        return [fr + (tr * total_cycle) for fr in frames for tr in range(n_repeat)]
+
+    all_right_frames = get_all_frames(move_right_frames)
+    all_left_frames = get_all_frames(move_left_frames)
+    all_flash_frames = get_all_frames((flash_left_frames + flash_right_frames))
+
+    motion_seq = {"right": all_right_frames, "left": all_left_frames, "flash": all_flash_frames}
+
+    return motion_seq
