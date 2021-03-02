@@ -6,17 +6,26 @@ Created at 3/1/21
 FIPS saccade experiment task classes
 """
 from _base import BaseExperiment
-from _fips import FIPS
+from _fips import *
 
-from psychopy import logging, core, data, visual
+from psychopy import logging, core, data, visual, info, event
 from psychopy.tools.monitorunittools import deg2pix
 from pygaze import eyetracker, libtime, libscreen
+
+import numpy as np
+import pandas as pd
 
 
 class Saccade(BaseExperiment):
 
     def __init__(self, title, task, session, subject, debug):
         super().__init__(title, task, session, subject, debug)
+
+    def make_motion_seq(self):
+        pass
+
+    def make_trial_frames(self):
+        pass
 
     def run(self):
 
@@ -32,6 +41,12 @@ class Saccade(BaseExperiment):
         logging.info(f"Task: {self.TASK}")
         logging.info(f"Session: {self.SESSION}")
         logging.info("==========================================")
+
+        # subject
+        sub_params = self.get_sub_info()
+
+        # Monitor and screen
+        exp_mon = self.make_monitor(name="OLED", scr_num=0, width=0, dist=57)  # TODO: get the actual numbers
 
         # Eye tracker
         tracker = eyetracker.EyeTracker(self.window)
@@ -68,7 +83,7 @@ class Saccade(BaseExperiment):
         block_clock = core.Clock()
 
         runtime_info = info.RunTimeInfo(
-            win=win,
+            win=self.window,
             refreshTest="grating",
             verbose=True,
             userProcsDetailed=True,
@@ -81,7 +96,7 @@ class Saccade(BaseExperiment):
             runtimeInfo=runtime_info,
             savePickle=False,
             saveWideText=True,
-            dataFileName=str(run_file)
+            dataFileName=str(self.run_file)
         )
 
         # Blocks
@@ -116,7 +131,7 @@ class Saccade(BaseExperiment):
         # ============================================================
         # Runtime parameters
         n_stabilize = 4  # number of transitions needed to stabilize the effect
-        path_length = deg2pix(degrees=8, monitor=disp)  # the length of the path that frame moves
+        path_length = deg2pix(degrees=8, monitor=self.monitor)  # the length of the path that frame moves
         display_rf = 60
         flash_dur = 250
         v_frame = path_length / (motion_cycle - 2 * flash_dur)
@@ -124,27 +139,23 @@ class Saccade(BaseExperiment):
 
         # draw beginning message
         begin_msg.draw()
-        begin_time = win.flip()
-        hub.sendMessageEvent(text="EXPERIMENT_START", sec_time=begin_time)
+        begin_time = self.window.flip()
+
         event.waitKeys(keyList=["space"])
-        win.mouseVisible = False
+        self.window.mouseVisible = False
 
         # loop blocks
         for idx, block in enumerate(block_handlers):
 
             # calibrate the eye tracker
-            tracker.runSetupProcedure()
-
-            # initiate eye tracker
-            tracker.setRecordingState(True)
+            tracker.calibrate()
 
             # block setup
             if idx > 0:
                 between_block_msg.draw()
                 event.waitKeys(keyList=["space"])
 
-            hub.clearEvents()
-            win.recordFrameIntervals = True
+            self.window.recordFrameIntervals = True
             block_clock.reset()
 
             # loop trials
@@ -188,9 +199,9 @@ class Saccade(BaseExperiment):
 
                 # detect fixation
                 fixate = False
-                stim.fixation.autoDraw = True
+                fips_stim.fixation.autoDraw = True
 
-                win.flip()
+                self.window.flip()
 
                 while not fixate:
                     fixate, msg = detect_fixation(tracker, stim.fixation)

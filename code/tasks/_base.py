@@ -167,7 +167,7 @@ class BaseExperiment:
             # generate the window
             self._window = visual.Window(
                 name="ExperimentWindow",
-                monitor=self._monitor,
+                monitor=self.monitor,
                 winType="pyglet",
                 fullscr=True,
                 screen=int(not self.DEBUG),
