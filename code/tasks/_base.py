@@ -18,6 +18,8 @@ import numpy as np
 import abc
 from typing import Dict, List, Union
 
+from utils import jitter, get_screens
+
 
 class BaseExperiment:
     """
@@ -43,11 +45,10 @@ class BaseExperiment:
         For development use. If set to True bypasses many repetitive stages.
     """
 
-    def __init__(self, title: str, task: str, session: int, subject: str, monitor: str, debug: bool) -> None:
+    def __init__(self, title: str, task: str, session: int, subject: str, debug: bool) -> None:
 
         self.NAME = title
         self.DEBUG = debug
-        self.MONITOR = monitor
         self.TASK = task
         self.SESSION = session
         self.SUBJECT = subject
@@ -56,11 +57,11 @@ class BaseExperiment:
         self.HOME = Path('.').resolve().parent
         self.CONFIG_DIR = self.HOME / "code" / "config"
         self.DATA_DIR = self.HOME / "data"
+        self._check_paths()
 
         # TODO: show a dialogue to select participant
-        self._monitor = None
+        self.monitor = None
         self._window = None
-        self._timing = dict()
         self._handlers = dict()
         self.warnings = {
             "Files": [],
@@ -68,6 +69,10 @@ class BaseExperiment:
         }
 
         self.startup()
+
+    @abc.abstractmethod
+    def run(self):
+        pass
 
     def get_sub_info(self) -> dict:
         """
@@ -112,10 +117,9 @@ class BaseExperiment:
 
         return sub_info
 
-    @staticmethod
-    def make_monitor(name: str, scr_num: int, width: float, dist: float) -> monitors.Monitor:
+    def make_monitor(self, name: str, scr_num: int, width: float, dist: float) -> monitors.Monitor:
         """
-        Creates and saves a monitor with user's initials.
+        Creates and saves a monitor.
 
         Parameters
         ------
@@ -146,10 +150,11 @@ class BaseExperiment:
 
         # TODO: set calibration and Gamma
 
+        self.monitor = _monitor
         return _monitor
 
     @property
-    def window(self, monitor, scr_num):
+    def window(self):
         """
         Creates a window to display stimuli.
 
@@ -162,10 +167,10 @@ class BaseExperiment:
             # generate the window
             self._window = visual.Window(
                 name="ExperimentWindow",
-                monitor=monitor,
+                monitor=self._monitor,
                 winType="pyglet",
                 fullscr=True,
-                screen=scr_num,
+                screen=int(not self.DEBUG),
                 checkTiming=True,
                 gammaErrorPolicy='ignore',
                 allowGUI=False,
@@ -176,8 +181,7 @@ class BaseExperiment:
 
         return self._window
 
-    @property
-    def timing(self) -> Dict[str, int]:
+    def timing(self, durations, data_points):
         """
         Compiles the timing of different stages (and adds jitter)
 
@@ -186,47 +190,19 @@ class BaseExperiment:
         dict :
 
         """
+        _timing = dict()
 
-        if not self._timing:
+        # timing values are dicts under 'durations' in the experiment settings
+        for key, val in durations:
 
-            self._timing["trial"] = 0
-            self._timing["total"] = 0
+            # the first index is the duration. second one is how much random jitter it should have.
+            duration = jitter(val[0], val[1])
+            _timing[key] = duration
+            _timing["trial"] += duration
 
-            # timing values are dicts under 'durations' in the experiment settings
-            for key, val in self.settings.get('EXPERIMENT').get('durations').items():
+        _timing["total"] = _timing["trial"] * data_points / 60 / 1000
 
-                # the first index is the duration. second one is how much random jitter it should have.
-                duration = jitter(val[0], val[1])
-                self._timing[key] = duration
-                self._timing["trial"] += duration
-
-            self._timing["total"] = int(self._timing["trial"] *
-                                        (self.settings["data_points"]["main"] + self.settings["data_points"]["practice"])
-                                        / 60 / 1000)
-
-        return self._timing
-
-    @property
-    def handlers(self) -> Dict:
-        """
-        Experiment handler added by default. To add more use add_handler().
-
-        Returns
-        -------
-        dict
-        """
-        if not self._handlers:
-
-            # experiment handler
-            self._handlers["exp"] = data.ExperimentHandler(
-                name=f"{self.NAME}Handler",
-                version=self.settings.get("EXPERIMENT")["version"],
-                extraInfo=self.parameters,
-                savePickle=False,
-                saveWideText=False
-            )
-
-        return self._handlers
+        return _timing
 
     def startup(self):
         """
@@ -236,14 +212,13 @@ class BaseExperiment:
         -------
 
         """
-
         # run checks
         self._check_paths()
         self._system_status()
 
         # add the check results to a gui
         report_gui = gui.Dlg(title='Report', labelButtonOK='Continue', size=100,
-                             labelButtonCancel="Quit", screen=self.parameters["screen_number"])
+                             labelButtonCancel="Quit", screen=int(not self.DEBUG))
 
         for key in self.warnings.keys():
             report_gui.addText(text=f"{key}", color="blue")
@@ -258,64 +233,9 @@ class BaseExperiment:
         _resp = report_gui.show()
 
         # check debug mode
-        if not self.MODE:
+        if not self.DEBUG:
             if not report_gui.OK:
                 self.end()
-
-    def add_handler(self, name: str, conditions: List[Dict]) -> None:
-        """
-        Adds a psychopy TrialHandler to self.handlers.
-        Also, adds it as a loop to the experiment handler.
-
-        Parameters
-        ----------
-        name : str
-
-        conditions : list
-            can be generated using psychopy.data.importConditions() or by looping through lists of conditions.
-        """
-
-        # trial handler
-        self.handlers[name] = data.TrialHandler(
-            name=f"{name}Handler",
-            trialList=conditions,
-            nReps=int(self.settings.get("EXPERIMENT")["data_points"][name]),
-            method='random'
-        )
-
-        # add it to the high-level experiment handler too
-        self.handlers["exp"].addLoop(self.handlers[name])
-
-    def init_logging(self, clock):
-        """
-        Generates the log file to populate with messages throughout the experiment.
-
-        Parameters
-        ----------
-        clock : psychopy.clock.Clock
-            experiment's global clock that is used to timestamp events.
-
-        Returns
-        -------
-
-        """
-        logging.setDefaultClock(clock)
-
-        # use ERROR level for the console and DEBUG for the logfile
-        logging.console.setLevel(logging.ERROR)
-        log_data = logging.LogFile(self.data_paths["log"], filemode='w', level=logging.DEBUG)
-
-        return log_data
-
-    def save(self):
-        """
-        # TODO: add upload to NAS psychopy.web.requireInternetAccess
-        Save the experiment into a file
-        """
-        for handler in self.handlers:
-            handler.saveAsWideText(self.data_paths["session"], delim=',')
-
-        self.window.saveFrameIntervals(self.data_paths["frames"])
 
     def end(self):
         """
@@ -344,13 +264,21 @@ class BaseExperiment:
         """
         Finds out if critical paths exist.
         """
-        data_dir = self.HOME_DIR / "data"
-        config_dir = self.HOME_DIR / "config"
-
-        if not config_dir.exists():
+        if not self.CONFIG_DIR.exists():
             self.warnings["Files"].append("Config directory not found.")
-        if not data_dir.exists():
+        if not self.DATA_DIR.exists():
             self.warnings["Files"].append("Data directory not found.")
+
+        sub_dir = self.DATA_DIR / f"sub-{self.SUBJECT}"
+        ses_dir = sub_dir / f"{self.TASK}"
+
+        if not sub_dir.is_dir():
+            sub_dir.mkdir()
+        if not ses_dir.is_dir():
+            ses_dir.mkdir()
+
+        self.log_file = str(ses_dir / f"sub-{self.SUBJECT}_ses-{self.SESSION}_task-{self.TASK}.log")
+        self.run_file = str(ses_dir / f"sub-{self.SUBJECT}_ses-{self.SESSION}_task-{self.TASK}")
 
     def _system_status(self):
         """
@@ -403,39 +331,3 @@ class BaseExperiment:
             self.warnings["System"].append("Could not raise the priority because you are on Mac OS X.")
         else:
             Computer.setPriority("realtime", disable_gc=True)
-
-
-def jitter(time: int, lag) -> float:
-    """
-    Adds or subtracts some jitter to a time period
-
-    Parameters
-    ----------
-    time : float
-    lag : float
-        minimum/maximum amount of jitter
-
-    Returns
-    -------
-    float
-        modified duration
-    """
-    durations = np.linspace(-lag, lag, num=10)
-    time += np.random.choice(durations, 1)
-
-    return time/1000
-
-
-def get_screens():
-    """
-    Use pyglet to find screens and their resolution
-
-    Returns
-    -------
-
-    """
-
-    pl = pyglet.canvas.get_display()
-    screens = pl.get_screens()
-
-    return screens
