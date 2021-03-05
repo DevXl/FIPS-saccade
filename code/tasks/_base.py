@@ -175,7 +175,7 @@ class BaseExperiment:
                 gammaErrorPolicy='ignore',
                 allowGUI=False,
                 color=[0, 0, 0],
-                units='deg',
+                units='pix',
                 autoLog=False
             )
 

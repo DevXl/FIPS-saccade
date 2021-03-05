@@ -14,7 +14,7 @@ from psychopy import visual, gui, data, monitors, core, logging, info, event
 from psychopy.tools.monitorunittools import deg2pix
 from pygaze import eyetracker, libscreen, libtime
 
-from fips import FIPS
+from tasks.fips import *
 
 # ============================================================
 #                          SETUP
@@ -82,7 +82,11 @@ if ses == "1":
         core.quit()
 
 # Display
-disp = make_test_monitor()
+mon_width = 55
+mon_size = (1920, 1080)
+disp = monitors.Monitor(name="OLED", width=mon_width, distance=60)
+disp.setSizePix(mon_size)
+disp.save()
 
 # Window
 win = visual.Window(
@@ -108,22 +112,7 @@ logging.info(f"Session: {ses}")
 logging.info("==========================================")
 
 # Eye-tracker
-# try:
-#     tracker_config = yload(open(str(config_dir / 'tracker_config.yaml'), 'r'), Loader=yLoader)
-#     hub = launchHubServer(**tracker_config)
-#     tracker = hub.getDevice('tracker')
-#     print(tracker)
-# except Exception as e:
-#     logging.error(f"Could not initiate eye tracking: {e}")
-TRACKER = 'eyelink'
-eyetracker_config = dict(name='tracker')
-tracker_config = None
-eyetracker_config['model_name'] = 'EYELINK 1000 DESKTOP'
-eyetracker_config['simulation_mode'] = False
-eyetracker_config['runtime_settings'] = dict(sampling_rate=1000, track_eyes='RIGHT')
-tracker_config = {'eyetracker.hw.sr_research.eyelink.EyeTracker':eyetracker_config}
-hub = launchHubServer(**tracker_config)
-tracker = hub.getDevice('tracker')
+tracker = eyetracker.EyeTracker(disp)
 
 # ============================================================
 #                          Stimulus
@@ -213,7 +202,6 @@ saccade_dur = 600
 # draw beginning message
 begin_msg.draw()
 begin_time = win.flip()
-hub.sendMessageEvent(text="EXPERIMENT_START", sec_time=begin_time)
 event.waitKeys(keyList=["space"])
 win.mouseVisible = False
 
@@ -221,17 +209,13 @@ win.mouseVisible = False
 for idx, block in enumerate(block_handlers):
 
     # calibrate the eye tracker
-    tracker.runSetupProcedure()
-
-    # initiate eye tracker
-    tracker.setRecordingState(True)
+    tracker.calibrate()
 
     # block setup
     if idx > 0:
         between_block_msg.draw()
         event.waitKeys(keyList=["space"])
     
-    hub.clearEvents()
     win.recordFrameIntervals = True
     block_clock.reset()
 
@@ -249,7 +233,6 @@ for idx, block in enumerate(block_handlers):
         ])
 
         trial_frames = trial_durs * display_rf / 1000
-        print(f"trial frames: {trial_frames}")
 
         n_total_frames = trial_frames.sum()
 

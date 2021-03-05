@@ -6,7 +6,7 @@ Created at 3/1/21
 FIPS saccade experiment task classes
 """
 from _base import BaseExperiment
-from _fips import *
+from fips import *
 
 from psychopy import logging, core, data, visual, info, event
 from psychopy.tools.monitorunittools import deg2pix
@@ -18,70 +18,87 @@ import pandas as pd
 
 class Saccade(BaseExperiment):
 
-    def __init__(self, title, task, session, subject, debug):
+    def __init__(self, title, task, session, subject, debug,
+                 n_stabilize=4, path_length=8, refresh_rate=60, flash_dur=250, saccade_dur=600, frame_size=10):
+
         super().__init__(title, task, session, subject, debug)
 
-    def make_motion_seq(self):
-        pass
+        self.n_stabilize = n_stabilize
+        self.path_length = path_length
+        self.refresh_rate = refresh_rate
+        self.flash_dur = flash_dur
+        self.saccade_dur = saccade_dur
+        self.frame_size = frame_size
 
-    def make_trial_frames(self):
-        pass
+        self.global_clock = core.Clock()
 
-    def run(self):
-
-        # Logging
-        global_clock = core.Clock()
-        logging.setDefaultClock(global_clock)
+    def init_logging(self):
+        logging.setDefaultClock(self.global_clock)
         logging.console.setLevel(logging.DEBUG)
         run_log = logging.LogFile(self.log_file, level=logging.DEBUG, filemode='w')
         run_log.write("Logging started...")
 
+    def run(self):
+
+        # Logging
+        self.init_logging()
         logging.info(f"Date: {data.getDateStr()}")
         logging.info(f"Subject: {self.SUBJECT}")
         logging.info(f"Task: {self.TASK}")
         logging.info(f"Session: {self.SESSION}")
-        logging.info("==========================================")
+        logging.info("==================================================================")
 
-        # subject
+        # Subject
         sub_params = self.get_sub_info()
 
-        # Monitor and screen
-        exp_mon = self.make_monitor(name="OLED", scr_num=0, width=0, dist=57)  # TODO: get the actual numbers
+        # Monitor
+        exp_mon = self.make_monitor(name="OLED", scr_num=0, width=52, dist=60)  # TODO: get the actual numbers
 
         # Eye tracker
         tracker = eyetracker.EyeTracker(self.window)
 
         # ============================================================
-        #                          Stimulus
+        #                          Stimuli
         # ============================================================
-        stim_size = deg2pix(degrees=10, monitor=self.monitor)
-        fips_stim = FIPS(win=self.window, size=stim_size, pos=[0, 3], name='ExperimentFrame')
 
-        crit_region_size = deg2pix(degrees=2, monitor=self.monitor)
-        crit_region = visual.Circle(win=self.window, lineColor=[0, 0, 0], radius=crit_region_size, autoLog=False)
+        # convert FIPS frame size to pixels
+        frame_size = deg2pix(degrees=self.frame_size, monitor=self.monitor)
+
+        # get the FIPS frame
+        fips_frame = FIPS(win=self.window, size=frame_size, pos=[-3, 3], name='FIPSFrame')
+
+        # define the critical region
+        # when gaze leaves this region (after cue) the target will disappear
+        reg_size = deg2pix(degrees=2, monitor=self.monitor)
+        critical_region = visual.Circle(win=self.window, lineColor=[0, 0, 0], radius=reg_size, autoLog=False)
 
         # messages
         begin_msg = visual.TextStim(win=self.window, text="Press any key to start.", autoLog=False)
-        between_block_txt = "You just finished block {}. Number of remaining of blocks: {}.\nPress the spacebar to continue."
+
+        between_block_txt = "You just finished block {}. Number of remaining of blocks: {}.\n" \
+                            "Press the spacebar to continue."
         between_block_msg = visual.TextStim(win=self.window, autoLog=False)
+
         fixation_msg = visual.TextStim(win=self.window, text="Fixate on the dot.", pos=[0, -200], autoLog=False)
+
         finish_msg = visual.TextStim(win=self.window, text="Thank you for participating!", autoLog=False)
 
         # ============================================================
         #                          Procedure
         # ============================================================
-        # timing
-        trial_clock = core.Clock()
-        motion_cycle = 1500  # in ms for a cycle of frame motion
-        saccade_times = np.linspace(start=0, stop=1500, num=6)
-
-        # experiment
-        # n_blocks = 12
-        n_blocks = 1
-        # total_trials = 384
-        total_trials = 10
+        # clocks for block an trial
         block_clock = core.Clock()
+        trial_clock = core.Clock()
 
+        # conditions
+        cue_oscs = list(range(2, 7))  # number of oscillations before target color change
+        frame_velocities = [1, 1.5, 2]
+
+        # number of blocks and trials
+        n_blocks = 12
+        total_trials = 384
+
+        # experiment handler
         runtime_info = info.RunTimeInfo(
             win=self.window,
             refreshTest="grating",
@@ -129,14 +146,6 @@ class Saccade(BaseExperiment):
         # ============================================================
         #                          Run
         # ============================================================
-        # Runtime parameters
-        n_stabilize = 4  # number of transitions needed to stabilize the effect
-        path_length = deg2pix(degrees=8, monitor=self.monitor)  # the length of the path that frame moves
-        display_rf = 60
-        flash_dur = 250
-        v_frame = path_length / (motion_cycle - 2 * flash_dur)
-        saccade_dur = 600
-
         # draw beginning message
         begin_msg.draw()
         begin_time = self.window.flip()
@@ -155,64 +164,22 @@ class Saccade(BaseExperiment):
                 between_block_msg.draw()
                 event.waitKeys(keyList=["space"])
 
-            self.window.recordFrameIntervals = True
             block_clock.reset()
 
             # loop trials
             for trial in block:
 
+                self.window.recordFrameIntervals = True
+
                 # quit the trial if this is set to True anywhere
-                bad_trials = []
+                bad_trial = False
 
-                trial_durs = np.asarray([
-                    trial["delay"],  # fixation period
-                    2 * n_stabilize * motion_cycle,  # stabilization period
-                    trial["t_cue"],  # cue period
-                    saccade_dur  # Saccade period
-                ])
-
-                trial_frames = trial_durs * display_rf / 1000
-                print(f"trial frames: {trial_frames}")
-
-                n_total_frames = trial_frames.sum()
-
-                fixation_frames = [i for i in range(int(trial_frames[0]))]
-
-                stab_frames = [i for i in range(int(fixation_frames[-1]) + 1, int(trial_frames[1]))]
-                stab_seq = make_motion_seq(
-                    path_dur=int(path_length * (1 / v_frame) * display_rf / 1000),
-                    flash_dur=int(flash_dur * display_rf / 1000),
-                    n_repeat=n_stabilize + 1,  # +1 because of the cue period
-                    total_cycle=motion_cycle * display_rf / 1000
-                )
-
-                cue_frames = [i for i in range(int(stab_frames[-1] + 1), int(trial_frames[2] + stab_frames[-1] + 1))]
-
-                # print((stab_frames[-1]+1), (int(trial_frames[2]+stab_frames[-1]+1)))
-                saccade_frames = [i for i in range(int(cue_frames[-1]) + 1, int(trial_frames[3] + cue_frames[-1]) + 1)]
-                saccade_seq = make_motion_seq(
-                    path_dur=int(path_length * (1 / v_frame) * display_rf / 1000),
-                    flash_dur=int(flash_dur * display_rf / 1000),
-                    n_repeat=1,
-                    total_cycle=motion_cycle * display_rf / 1000
-                )
-
-                # detect fixation
-                fixate = False
+                # drift correction
+                checked = False
                 fips_stim.fixation.autoDraw = True
-
-                self.window.flip()
-
-                while not fixate:
-                    fixate, msg = detect_fixation(tracker, stim.fixation)
-                    fixation_msg.text = msg
-                    fixation_msg.draw()
-                    win.flip()
-
-                fixation_msg.text = ""
-                fixation_msg.draw()
-                stim.fixation.autoDraw = False
-                win.flip()
+                while not checked:
+                    self.window.flip()
+                    checked = tracker.drift_correction()
 
                 for fr in range(int(n_total_frames)):
 
@@ -269,3 +236,81 @@ class Saccade(BaseExperiment):
         hub.quit()
         win.close()
         core.quit()
+
+    def make_motion_seq(self):
+        pass
+
+    def make_trial_frames(self, trial):
+        """
+
+        Parameters
+        ----------
+        trial
+
+        Returns
+        -------
+
+        """
+
+        # convert path length to pixels
+        path_length = deg2pix(degrees=self.path_length, monitor=self.monitor)
+
+        # convert velocity from deg/s to pixel/frame
+        v_frame = deg2pix(degrees=trial["velocity"], monitor=self.monitor) / self.refresh_rate
+
+        # convert timing from ms to number of frames
+        flash_dur = self.ms2frame(self.flash_dur)
+        saccade_dur = self.ms2frame(self.saccade_dur)
+
+        # velocity of the frame is in pixel/frame
+        # since the motion cycle is for a full path + 2 flashes at the end points, the velocity of the frame will be
+        # for half a path - one flash duration
+        path_duration = path_length * (1/v_frame)
+        motion_cycle = (path_duration + flash_dur) * 2
+
+        # durations of a given trial in frames
+        trial_durs = np.asarray([
+            self.ms2frame(trial["delay"]),  # fixation period is a variable duration to establish fixation
+            self.n_stabilize * motion_cycle,  # stabilization period is a number of oscillation to stabilize
+            self.ms2frame(trial["n_cue"]) * motion_cycle,  # cue period is number of oscillations before color change
+            saccade_dur  # Saccade period is the maximum amount of time for executing a saccade and finishing the trial
+        ])
+
+        # arrays to get the frame numbers for each part of the trial
+        n_total_frames = trial_durs.sum()
+        fixation_frames = []
+        stabilization_frames = []
+        cue_frames = []
+        saccade_frames = []
+
+        # add frame numbers for each part
+        n_frame = 0
+        while n_frame < n_total_frames:
+
+            # check if in fixation period
+            if n_frame < trial_durs[0]:
+                fixation_frames.append(n_frame)
+
+            # check stabilization period
+            elif trial_durs[0] <= n_frame < trial_durs[1]:
+                stabilization_frames.append(n_frame)
+
+            # check if in cue period
+            elif trial_durs[1] <= n_frame < trial_durs[2]:
+                cue_frames.append(n_frame)
+
+            # for saccade period
+            else:
+                saccade_frames.append(n_frame)
+
+            # go to next frame
+            n_frame += 1
+
+        trial_frames = {
+            'fix': fixation_frames, 'stabilize': stabilization_frames, 'cue': cue_frames, 'saccade': saccade_frames
+        }
+
+        return trial_frames
+
+    def ms2frame(self, duration):
+        return self.refresh_rate * duration / 1000

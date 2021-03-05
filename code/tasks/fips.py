@@ -160,7 +160,7 @@ class FIPS:
         ----------
         scr_frame : int
 
-        sequence : str
+        sequence : dict
 
         Returns
         -------
