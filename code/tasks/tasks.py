@@ -52,7 +52,7 @@ class Saccade(BaseExperiment):
         sub_params = self.get_sub_info()
 
         # Monitor
-        exp_mon = self.make_monitor(name="OLED", scr_num=0, width=52, dist=60)  # TODO: get the actual numbers
+        exp_mon = self.make_monitor(name="OLED", scr_num=0, width=52, dist=60)
 
         # Eye tracker
         tracker = eyetracker.EyeTracker(self.window)
@@ -91,8 +91,20 @@ class Saccade(BaseExperiment):
         trial_clock = core.Clock()
 
         # conditions
-        cue_oscs = list(range(2, 7))  # number of oscillations before target color change
-        frame_velocities = [1, 1.5, 2]
+        cue_oscs = list(range(2, 5))  # number of oscillations before target color change
+        speeds = [1, 1.5, 2]
+        target_pos = ["top", "bot"]
+        conditions = []
+
+        for speed in speeds:
+            for target in ["top", "bot"]:
+                conditions.append(
+                    {
+                        "delay": np.random.choice(cue_oscs),
+                        "target": target,
+                        "frame_speed": speed
+                    }
+                )
 
         # number of blocks and trials
         n_blocks = 12
@@ -116,28 +128,13 @@ class Saccade(BaseExperiment):
             dataFileName=str(self.run_file)
         )
 
-        # Blocks
-        conditions = []
-        velocities = [1, 1.5, 2]
-        for target in ["top", "bot"]:
-            for velocity in velocities:
-                conditions.append(
-                    {
-                        "target": target,
-                        "velocity": velocity,
-                        "delay": np.round(np.random.uniform(400, 600)),
-                        "t_cue": np.random.choice(saccade_times)
-                    }
-                )
         block_handlers = []
-
         for block in range(n_blocks):
             this_block = data.TrialHandler(
                 name=f"Block_{block}",
                 trialList=conditions,
                 nReps=total_trials / n_blocks,
                 method="fullRandom",
-                # seed=block,
                 originPath=-1
             )
             block_handlers.append(this_block)
@@ -236,6 +233,48 @@ class Saccade(BaseExperiment):
         hub.quit()
         win.close()
         core.quit()
+
+    def trial_dataframe(self, subject):
+        """
+
+        Returns
+        -------
+
+        """
+        columns = [
+            "sub", "block", "trial", "task", "frame_speed", "target_pos", "cue_delay", "saccade_pos", "saccade_latency",
+            "saccade_offset"
+        ]
+
+        df = pd.DataFrame(columns=columns)
+
+        # conditions
+        cue_oscs = list(range(2, 5))  # number of oscillations before target color change
+        speeds = [1, 1.5, 2]
+        target_pos = ["top", "bot"]
+
+        # number of blocks and trials
+        trials_per_cond = 16
+        n_blocks = 4
+        n_trials = trials_per_cond * len(speeds) * len(target_pos)
+
+        for block in range(n_blocks):
+            trial_n = 1
+
+            for trial in range(trials_per_cond):
+                for speed in speeds:
+                    for target in target_pos:
+                        row = [
+                            subject, block, trial_n, "saccade", speed, target, np.random.choice(cue_oscs), np.nan,
+                            np.nan, np.nan
+                        ]
+                        trial_n += 1
+
+
+
+
+
+
 
     def make_motion_seq(self):
         pass
