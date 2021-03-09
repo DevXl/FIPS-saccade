@@ -42,10 +42,10 @@ class Saccade(BaseExperiment):
 
         # Logging
         self.init_logging()
-        logging.info(f"Date: {data.getDateStr()}")
-        logging.info(f"Subject: {self.SUBJECT}")
-        logging.info(f"Task: {self.TASK}")
-        logging.info(f"Session: {self.SESSION}")
+        logging.info(f"Date: \t{data.getDateStr()}")
+        logging.info(f"Subject: \t{self.SUBJECT}")
+        logging.info(f"Task: \t{self.TASK}")
+        logging.info(f"Session: \t{self.SESSION}")
         logging.info("==================================================================")
 
         # Subject
@@ -75,7 +75,7 @@ class Saccade(BaseExperiment):
         # messages
         begin_msg = visual.TextStim(win=self.window, text="Press any key to start.", autoLog=False)
 
-        between_block_txt = "You just finished block {}. Number of remaining of blocks: {}.\n" \
+        between_block_txt = "Number of remaining of blocks: {}.\n" \
                             "Press the spacebar to continue."
         between_block_msg = visual.TextStim(win=self.window, autoLog=False)
 
@@ -90,151 +90,98 @@ class Saccade(BaseExperiment):
         block_clock = core.Clock()
         trial_clock = core.Clock()
 
-        # conditions
-        cue_oscs = list(range(2, 5))  # number of oscillations before target color change
-        speeds = [1, 1.5, 2]
-        target_pos = ["top", "bot"]
-        conditions = []
-
-        for speed in speeds:
-            for target in ["top", "bot"]:
-                conditions.append(
-                    {
-                        "delay": np.random.choice(cue_oscs),
-                        "target": target,
-                        "frame_speed": speed
-                    }
-                )
-
-        # number of blocks and trials
-        n_blocks = 12
-        total_trials = 384
-
-        # experiment handler
-        runtime_info = info.RunTimeInfo(
-            win=self.window,
-            refreshTest="grating",
-            verbose=True,
-            userProcsDetailed=True,
-        )
-
-        exp_handler = data.ExperimentHandler(
-            name="SaccadeExperiment",
-            version=0.1,
-            extraInfo=sub_params,
-            runtimeInfo=runtime_info,
-            savePickle=False,
-            saveWideText=True,
-            dataFileName=str(self.run_file)
-        )
-
-        block_handlers = []
-        for block in range(n_blocks):
-            this_block = data.TrialHandler(
-                name=f"Block_{block}",
-                trialList=conditions,
-                nReps=total_trials / n_blocks,
-                method="fullRandom",
-                originPath=-1
-            )
-            block_handlers.append(this_block)
-            exp_handler.addLoop(this_block)
+        # all trials dataframe
+        df = self.exp_dataframe()
 
         # ============================================================
         #                          Run
         # ============================================================
         # draw beginning message
         begin_msg.draw()
-        begin_time = self.window.flip()
-
-        event.waitKeys(keyList=["space"])
         self.window.mouseVisible = False
+        self.window.flip()
+        event.waitKeys(keyList=["space"])
+        logging.info(f"EXPERIMENT STARTED AT: \t{self.global_clock.getTime()}")
 
         # loop blocks
-        for idx, block in enumerate(block_handlers):
+        for block in df.block.unique():
+
+            # show block message
+            between_block_msg.text = between_block_txt.format(5 - block)  # TODO: set in init
+            between_block_msg.draw()
+            self.window.flip()
+            event.waitKeys(keyList=["space"])
 
             # calibrate the eye tracker
             tracker.calibrate()
 
-            # block setup
-            if idx > 0:
-                between_block_msg.draw()
-                event.waitKeys(keyList=["space"])
-
+            # log beginning of the block
             block_clock.reset()
+            logging.info(f"BLOCK {block} STARTED AT: \t{self.global_clock.getTime()}")
 
             # loop trials
-            for trial in block:
+            for idx, trial in df[df["block"] == block].iterrows():
 
-                self.window.recordFrameIntervals = True
-
-                # quit the trial if this is set to True anywhere
-                bad_trial = False
+                bad_trial = False  # quit the trial if this is set to True anywhere
+                trial_frames = self.make_trial_frames(trial)  # get frame sequence
+                self.window.recordFrameIntervals = True  # start recording flips
 
                 # drift correction
                 checked = False
-                fips_stim.fixation.autoDraw = True
                 while not checked:
+                    fips_frame.fixation.draw()
                     self.window.flip()
                     checked = tracker.drift_correction()
 
-                for fr in range(int(n_total_frames)):
+                # start eye tracking
+                tracker.start_recording()
+                tracker.status_msg(f"block {block} trial {trial['trial_n']}")
+                tracker.log(f"start_trial {trial['trial_n']} task {trial['task']} frame_speed {trial['frame_speed']} target_pos {trial['target_pos']}")
 
-                    # get eye position
-                    gaze_pos = tracker.getLastGazePosition()
+                # start the trial
+                for fr in range(int(trial_frames["total"])):
 
-                    # check if it's valid
-                    valid_gaze_pos = isinstance(gaze_pos, (tuple, list))
+                    # 1) FIXATION PERIOD: fixation appears
+                    if fr in trial_frames["fixation"]:
 
-                    if valid_gaze_pos:
+                        # log on one of the frames
+                        if fr == trial_frames["fixation"][1]:
+                            tracker.log("fixation")
+                        fips_frame.fixation.draw()
+                        , tracker.wait_for_fixation_start()
 
-                        fix_ok = False
+                    # 2) STABILIZATION PERIOD
+                    elif fr in trial_frames["stabilize"]:
 
-                        # 1) FIXATION PERIOD
-                        if fr in fixation_frames:
-                            stim.fixation.draw()
+                        fips_frame.move_frame(fr, trial_frames["stabilize"])
 
-                            if stim.fixation.contains(gaze_pos):
-                                fix_ok = True
-                            else:
-                                bad_trials.append(trial)
-                                try:
-                                    block.next()
-                                except StopIteration:
-                                    print("End of Block")
+                        stim.fixation.draw()
+                        if stim.fixation.contains(gaze_pos):
+                            fix_ok = True
+                        else:
+                            bad_trials.append(trial)
+                            try:
+                                block.next()
+                            except StopIteration:
+                                print("End of Block")
 
-                        # 2) STABILIZATION AND CUE PERIOD
-                        elif fr in (stab_frames + cue_frames):
+                    # 3) CUE PERIOD
+                    elif fr in trial_frames["cue"]:
+                        if crit_region.contains(gaze_pos):
+                            stim.move_frame(fr, saccade_seq)
 
-                            stim.move_frame(fr, stab_seq)
+                    # 4) SACCADE PERIOD
+                    elif fr in trial_frames["saccade"]:
 
-                            stim.fixation.draw()
-                            if stim.fixation.contains(gaze_pos):
-                                fix_ok = True
-                            else:
-                                bad_trials.append(trial)
-                                try:
-                                    block.next()
-                                except StopIteration:
-                                    print("End of Block")
 
-                        # 3) SACCADE PERIOD
-                        elif fr in saccade_frames:
-                            if crit_region.contains(gaze_pos):
-                                stim.move_frame(fr, saccade_seq)
-
-                        exp_handler.nextEntry()
-
-            tracker.setRecordingState(False)
-            win.recordFrameIntervals = False
+            self.window.recordFrameIntervals = False
 
         tracker.setConnectionState(False)
-        exp_handler.saveAsWideText(fileName=str(run_file))
-        hub.quit()
-        win.close()
+        df.to_csv(str(self.run_file))
+        self.window.close()
         core.quit()
 
-    def trial_dataframe(self, subject):
+    def exp_dataframe(self):
         """
 
         Returns
@@ -242,7 +189,7 @@ class Saccade(BaseExperiment):
 
         """
         columns = [
-            "sub", "block", "trial", "task", "frame_speed", "target_pos", "cue_delay", "saccade_pos", "saccade_latency",
+            "sub", "block", "task", "frame_speed", "target_pos", "cue_delay", "saccade_pos", "saccade_latency",
             "saccade_offset"
         ]
 
@@ -257,24 +204,29 @@ class Saccade(BaseExperiment):
         trials_per_cond = 16
         n_blocks = 4
         n_trials = trials_per_cond * len(speeds) * len(target_pos)
+        trial_idx = np.tile(list(range(1, n_trials + 1)), reps=4)
 
+        # going over blocks
         for block in range(n_blocks):
-            trial_n = 1
 
+            block_df = pd.DataFrame(columns=columns)  # so we can shuffle the trials at the end
+
+            # making trials inside the block
             for trial in range(trials_per_cond):
                 for speed in speeds:
                     for target in target_pos:
                         row = [
-                            subject, block, trial_n, "saccade", speed, target, np.random.choice(cue_oscs), np.nan,
+                            self.SUBJECT, block + 1, "saccade", speed, target, np.random.choice(cue_oscs), np.nan,
                             np.nan, np.nan
                         ]
-                        trial_n += 1
+                        block_df = block_df.append(pd.DataFrame([row], columns=columns), ignore_index=True)
 
+            block_df = block_df.iloc[np.random.permutation(len(block_df))].reset_index(drop=True)
+            block_df["trial_n"] = list(range(1, n_trials + 1))
 
+            df = df.append(block_df, ignore_index=True)
 
-
-
-
+        return df
 
     def make_motion_seq(self):
         pass
@@ -295,7 +247,7 @@ class Saccade(BaseExperiment):
         path_length = deg2pix(degrees=self.path_length, monitor=self.monitor)
 
         # convert velocity from deg/s to pixel/frame
-        v_frame = deg2pix(degrees=trial["velocity"], monitor=self.monitor) / self.refresh_rate
+        v_frame = deg2pix(degrees=trial["frame_speed"], monitor=self.monitor) / self.refresh_rate
 
         # convert timing from ms to number of frames
         flash_dur = self.ms2frame(self.flash_dur)
@@ -306,13 +258,14 @@ class Saccade(BaseExperiment):
         # for half a path - one flash duration
         path_duration = path_length * (1/v_frame)
         motion_cycle = (path_duration + flash_dur) * 2
+        fix_dur = np.random.uniform(400, 600)
 
         # durations of a given trial in frames
         trial_durs = np.asarray([
-            self.ms2frame(trial["delay"]),  # fixation period is a variable duration to establish fixation
+            fix_dur,  # fixation period is a variable duration to establish fixation
             self.n_stabilize * motion_cycle,  # stabilization period is a number of oscillation to stabilize
-            self.ms2frame(trial["n_cue"]) * motion_cycle,  # cue period is number of oscillations before color change
-            saccade_dur  # Saccade period is the maximum amount of time for executing a saccade and finishing the trial
+            self.ms2frame(trial["cue_delay"]) * motion_cycle,  # number of oscillations before color change
+            saccade_dur  # the maximum amount of time for executing a saccade and finishing the trial
         ])
 
         # arrays to get the frame numbers for each part of the trial
@@ -334,11 +287,11 @@ class Saccade(BaseExperiment):
             elif trial_durs[0] <= n_frame < trial_durs[1]:
                 stabilization_frames.append(n_frame)
 
-            # check if in cue period
+            # check cue period
             elif trial_durs[1] <= n_frame < trial_durs[2]:
                 cue_frames.append(n_frame)
 
-            # for saccade period
+            # check saccade period
             else:
                 saccade_frames.append(n_frame)
 
@@ -346,7 +299,8 @@ class Saccade(BaseExperiment):
             n_frame += 1
 
         trial_frames = {
-            'fix': fixation_frames, 'stabilize': stabilization_frames, 'cue': cue_frames, 'saccade': saccade_frames
+            'fixation': fixation_frames, 'stabilize': stabilization_frames, 'cue': cue_frames,
+            'saccade': saccade_frames, 'total': n_total_frames
         }
 
         return trial_frames
