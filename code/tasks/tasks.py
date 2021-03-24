@@ -65,7 +65,7 @@ class Saccade(BaseExperiment):
         frame_size = deg2pix(degrees=self.frame_size, monitor=self.monitor)
 
         # get the FIPS frame
-        fips_frame = FIPS(win=self.window, size=frame_size, pos=[-3, 3], name='FIPSFrame')
+        fips_frame = FIPS(win=self.window, size=frame_size, pos=[-3, 3], name='FIPSFrame', path_length=self.path_length)
 
         # define the critical region
         # when gaze leaves this region (after cue) the target will disappear
@@ -97,14 +97,17 @@ class Saccade(BaseExperiment):
         #                          Run
         # ============================================================
         # draw beginning message
+        self.global_clock.reset()
         begin_msg.draw()
         self.window.mouseVisible = False
         self.window.flip()
         event.waitKeys(keyList=["space"])
-        logging.info(f"EXPERIMENT STARTED AT: \t{self.global_clock.getTime()}")
+        logging.info(f"EXPERIMENT STARTED AT: {self.global_clock.getTime()}")
 
         # loop blocks
         for block in df.block.unique():
+
+            block_clock.reset()
 
             # show block message
             between_block_msg.text = between_block_txt.format(5 - block)  # TODO: set in init
@@ -116,12 +119,13 @@ class Saccade(BaseExperiment):
             tracker.calibrate()
 
             # log beginning of the block
-            block_clock.reset()
-            logging.info(f"BLOCK {block} STARTED AT: \t{self.global_clock.getTime()}")
+            block_tstart = block_clock.getTime()
+            logging.info(f"BLOCK {block} STARTED at: {self.global_clock.getTime()}")
 
             # loop trials
             for idx, trial in df[df["block"] == block].iterrows():
 
+                trial_clock.reset()
                 bad_trial = False  # quit the trial if this is set to True anywhere
                 trial_frames = self.make_trial_frames(trial)  # get frame sequence
                 self.window.recordFrameIntervals = True  # start recording flips
@@ -139,44 +143,39 @@ class Saccade(BaseExperiment):
                 tracker.log(f"start_trial {trial['trial_n']} task {trial['task']} frame_speed {trial['frame_speed']} target_pos {trial['target_pos']}")
 
                 # start the trial
-                for fr in range(int(trial_frames["total"])):
+                trial_t0 = trial_clock.getTime()
+                logging.info(f"TRIAL {idx} STARTED at: {self.global_clock.getTime()}")
 
-                    # 1) FIXATION PERIOD: fixation appears
-                    if fr in trial_frames["fixation"]:
+                # 1) FIXATION PERIOD: fixation appears for some random amount of time
+                # uniformly sampled from 400 to 600 ms
+                fips_frame.fixation.autoDraw = True
+                self.window.flip()
+                core.wait(np.round(np.random.choice(400, 600)/1000, 3))
 
-                        # log on one of the frames
-                        if fr == trial_frames["fixation"][1]:
-                            tracker.log("fixation")
-                        fips_frame.fixation.draw()
-                        , tracker.wait_for_fixation_start()
+                # check fixation
+                logging.info(f"\tDELAY ENDED at {self.global_clock.getTime()}")
+                fix_tstart, fix_pos = tracker.wait_for_fixation_start()
+                tracker.log("fixation")
+                logging.info(f"\tFIXATION STARTED at {fix_tstart}")
 
-                    # 2) STABILIZATION PERIOD
-                    elif fr in trial_frames["stabilize"]:
-
+                # 2) STABILIZATION PERIOD
+                for osc in self.n_stabilize:
+                    for fr in range(n_motion_frames):
                         fips_frame.move_frame(fr, trial_frames["stabilize"])
 
-                        stim.fixation.draw()
-                        if stim.fixation.contains(gaze_pos):
-                            fix_ok = True
-                        else:
-                            bad_trials.append(trial)
-                            try:
-                                block.next()
-                            except StopIteration:
-                                print("End of Block")
-
-                    # 3) CUE PERIOD
-                    elif fr in trial_frames["cue"]:
-                        if crit_region.contains(gaze_pos):
-                            stim.move_frame(fr, saccade_seq)
-
-                    # 4) SACCADE PERIOD
-                    elif fr in trial_frames["saccade"]:
-
+                    stim.fixation.draw()
+                    if stim.fixation.contains(gaze_pos):
+                        fix_ok = True
+                    else:
+                        bad_trials.append(trial)
+                        try:
+                            block.next()
+                        except StopIteration:
+                            print("End of Block")
 
             self.window.recordFrameIntervals = False
 
-        tracker.setConnectionState(False)
+        tracker.stop_recording()
         df.to_csv(str(self.run_file))
         self.window.close()
         core.quit()
@@ -250,21 +249,21 @@ class Saccade(BaseExperiment):
         v_frame = deg2pix(degrees=trial["frame_speed"], monitor=self.monitor) / self.refresh_rate
 
         # convert timing from ms to number of frames
-        flash_dur = self.ms2frame(self.flash_dur)
-        saccade_dur = self.ms2frame(self.saccade_dur)
+        flash_dur = np.floor(self.ms2frame(self.flash_dur))
+        saccade_dur = np.floor(self.ms2frame(self.saccade_dur))
 
         # velocity of the frame is in pixel/frame
         # since the motion cycle is for a full path + 2 flashes at the end points, the velocity of the frame will be
         # for half a path - one flash duration
         path_duration = path_length * (1/v_frame)
         motion_cycle = (path_duration + flash_dur) * 2
-        fix_dur = np.random.uniform(400, 600)
+        fix_dur = np.floor(self.ms2frame(np.random.uniform(400, 600)))
 
         # durations of a given trial in frames
         trial_durs = np.asarray([
             fix_dur,  # fixation period is a variable duration to establish fixation
             self.n_stabilize * motion_cycle,  # stabilization period is a number of oscillation to stabilize
-            self.ms2frame(trial["cue_delay"]) * motion_cycle,  # number of oscillations before color change
+            np.floor(self.ms2frame(trial["cue_delay"])) * motion_cycle,  # number of oscillations before color change
             saccade_dur  # the maximum amount of time for executing a saccade and finishing the trial
         ])
 
@@ -307,3 +306,4 @@ class Saccade(BaseExperiment):
 
     def ms2frame(self, duration):
         return self.refresh_rate * duration / 1000
+
