@@ -137,7 +137,7 @@ class FIPS:
                 win=self.win,
                 mask='circle',
                 size=radius,
-                phase = 0,
+                phase=0,
                 pos=top_pos,
                 sf=0,
                 ori=0,
@@ -159,7 +159,7 @@ class FIPS:
 
         return self._probes
 
-    def move_frame(self, scr_frame, sequence):
+    def move_frame(self, frame_n, speed):
         """
         Oscillates the frame
 
