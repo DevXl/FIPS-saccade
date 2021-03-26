@@ -32,21 +32,10 @@ class Saccade(BaseExperiment):
 
         self.global_clock = core.Clock()
 
-    def init_logging(self):
-        logging.setDefaultClock(self.global_clock)
-        logging.console.setLevel(logging.DEBUG)
-        run_log = logging.LogFile(self.log_file, level=logging.DEBUG, filemode='w')
-        run_log.write("Logging started...")
-
     def run(self):
 
         # Logging
         self.init_logging()
-        logging.info(f"Date: \t{data.getDateStr()}")
-        logging.info(f"Subject: \t{self.SUBJECT}")
-        logging.info(f"Task: \t{self.TASK}")
-        logging.info(f"Session: \t{self.SESSION}")
-        logging.info("==================================================================")
 
         # Subject
         sub_params = self.get_sub_info()
@@ -140,17 +129,18 @@ class Saccade(BaseExperiment):
                 # start eye tracking
                 tracker.start_recording()
                 tracker.status_msg(f"block {block} trial {trial['trial_n']}")
-                tracker.log(f"start_trial {trial['trial_n']} task {trial['task']} frame_speed {trial['frame_speed']} target_pos {trial['target_pos']}")
+                tracker.log(f"start_trial {trial['trial_n']} task {trial['task']} frame_speed " +
+                            f"{trial['frame_speed']} target_pos {trial['target_pos']}")
 
                 # start the trial
                 trial_t0 = trial_clock.getTime()
                 logging.info(f"TRIAL {idx} STARTED at: {self.global_clock.getTime()}")
 
-                # 1) FIXATION PERIOD: fixation appears for some random amount of time
-                # uniformly sampled from 400 to 600 ms
+                # 1) FIXATION PERIOD:
+                # fixation appears for some random amount of time uniformly sampled from 400 to 600 ms
                 fips_frame.fixation.autoDraw = True
                 self.window.flip()
-                core.wait(np.round(np.random.choice(400, 600)/1000, 3))
+                core.wait(np.round(np.random.choice(400, 600) / 1000, 3))
 
                 # check fixation
                 logging.info(f"\tDELAY ENDED at {self.global_clock.getTime()}")
@@ -159,9 +149,12 @@ class Saccade(BaseExperiment):
                 logging.info(f"\tFIXATION STARTED at {fix_tstart}")
 
                 # 2) STABILIZATION PERIOD
-                for osc in self.n_stabilize:
-                    for fr in range(n_motion_frames):
-                        fips_frame.move_frame(fr, trial_frames["stabilize"])
+                for osc in range(self.n_stabilize):
+
+                    # the trial_frames lists have redundant information
+                    # they include the actual number of each frame, not the overall length of each period
+                    for fr in range(len(trial_frames["stabilize"])):
+                        if fr <
 
                     stim.fixation.draw()
                     if stim.fixation.contains(gaze_pos):
@@ -180,6 +173,18 @@ class Saccade(BaseExperiment):
         self.window.close()
         core.quit()
 
+    def init_logging(self):
+        logging.setDefaultClock(self.global_clock)
+        logging.console.setLevel(logging.DEBUG)
+        run_log = logging.LogFile(self.log_file, level=logging.DEBUG, filemode='w')
+        run_log.write("Logging started...")
+        logging.info(f"Date: \t{data.getDateStr()}")
+        logging.info(f"Subject: \t{self.SUBJECT}")
+        logging.info(f"Task: \t{self.TASK}")
+        logging.info(f"Session: \t{self.SESSION}")
+        logging.info("==================================================================")
+
+
     def exp_dataframe(self):
         """
 
@@ -187,19 +192,24 @@ class Saccade(BaseExperiment):
         -------
 
         """
+        # important data
         columns = [
-            "sub", "block", "task", "frame_speed", "target_pos", "cue_delay", "saccade_pos", "saccade_latency",
-            "saccade_offset"
+            "sub", "block", "task", "trial_n" # general
+            "fixation_dur", "frame_speed", "target_pos", "cue_delay",  # stimulus-related
+            "saccade_pos", "saccade_latency", "saccade_offset"  # response-related
         ]
 
+        # initiate dataframe
         df = pd.DataFrame(columns=columns)
 
         # conditions
+        # TODO: import condition info from somewhere else
         cue_oscs = list(range(2, 5))  # number of oscillations before target color change
         speeds = [1, 1.5, 2]
         target_pos = ["top", "bot"]
 
         # number of blocks and trials
+        # TODO: import this info from somewhere else
         trials_per_cond = 16
         n_blocks = 4
         n_trials = trials_per_cond * len(speeds) * len(target_pos)
@@ -207,19 +217,26 @@ class Saccade(BaseExperiment):
 
         # going over blocks
         for block in range(n_blocks):
-
             block_df = pd.DataFrame(columns=columns)  # so we can shuffle the trials at the end
 
             # making trials inside the block
             for trial in range(trials_per_cond):
                 for speed in speeds:
                     for target in target_pos:
+
+                        # the random stuff
+                        _fix = np.round(np.random.choice(400, 600) / 1000)
+                        _osc = np.random.choice(cue_oscs)
+
+                        # populate the row
                         row = [
-                            self.SUBJECT, block + 1, "saccade", speed, target, np.random.choice(cue_oscs), np.nan,
-                            np.nan, np.nan
+                            self.SUBJECT, block + 1, "saccade",  # general
+                            _fix, speed, target, _osc,  # stimulus-related
+                            np.nan, np.nan, np.nan  # response-related
                         ]
                         block_df = block_df.append(pd.DataFrame([row], columns=columns), ignore_index=True)
 
+            # shuffling within the block
             block_df = block_df.iloc[np.random.permutation(len(block_df))].reset_index(drop=True)
             block_df["trial_n"] = list(range(1, n_trials + 1))
 
@@ -227,8 +244,9 @@ class Saccade(BaseExperiment):
 
         return df
 
-    def make_motion_seq(self):
-        pass
+    def make_motion_seq(self, trial):
+
+
 
     def make_trial_frames(self, trial):
         """
@@ -249,14 +267,14 @@ class Saccade(BaseExperiment):
         v_frame = deg2pix(degrees=trial["frame_speed"], monitor=self.monitor) / self.refresh_rate
 
         # convert timing from ms to number of frames
-        flash_dur = np.floor(self.ms2frame(self.flash_dur))
+        flash_frames = np.floor(self.ms2frame(self.flash_dur))
         saccade_dur = np.floor(self.ms2frame(self.saccade_dur))
 
         # velocity of the frame is in pixel/frame
         # since the motion cycle is for a full path + 2 flashes at the end points, the velocity of the frame will be
         # for half a path - one flash duration
         path_duration = path_length * (1/v_frame)
-        motion_cycle = (path_duration + flash_dur) * 2
+        motion_cycle = (path_duration + flash_frames) * 2
         fix_dur = np.floor(self.ms2frame(np.random.uniform(400, 600)))
 
         # durations of a given trial in frames
