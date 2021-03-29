@@ -20,7 +20,6 @@ class FIPS:
             size=10,
             ori=0.0,
             path_length=5,
-            speed=1,
             refresh_rate=60,
             flash_frames=5,
             name=None,
@@ -34,7 +33,6 @@ class FIPS:
         self.refresh_rate = refresh_rate
         self.flash_frames = flash_frames
         self.name = name
-        self._speed = speed
 
         # we want the flashes inside the frame
         if self.path_length >= self.size:
@@ -49,17 +47,7 @@ class FIPS:
         self._frame = None
         self._motion_seq = None
 
-        self.move_dur = self.path_length * (1/self.speed) * self.refresh_rate
-        self.total_cycle_frames = (self.move_dur + self.flash_frames) * 2
         self.init_pos = (-self.path_length/2, self.pos[1])
-
-    @property
-    def speed(self):
-        return self._speed
-
-    @speed.setter
-    def speed(self, val):
-        self._speed = val
 
     @property
     def fixation(self):
@@ -142,7 +130,7 @@ class FIPS:
                 sf=0,
                 ori=0,
                 contrast=self.contrast*.8,  # contrast 80% of the frame
-                color='blue'
+                color='red'
             )
 
             self._probes["bot"] = visual.GratingStim(
@@ -159,28 +147,4 @@ class FIPS:
 
         return self._probes
 
-    def move_frame(self, frame_n, trial):
-        """
-        Oscillates the frame
-
-        Parameters
-        ----------
-        scr_frame : int
-
-        sequence : dict
-
-        Returns
-        -------
-        None
-        """
-        # assuming the position of the frame is always directly above fixation
-        if scr_frame in sequence["right"]:
-            self.frame.pos += (self.speed, 0)
-            self.frame.draw()
-        elif scr_frame in sequence["left"]:
-            self.frame.pos -= (self.speed, 0)
-            self.frame.draw()
-        elif scr_frame in sequence["flash"]:
-            self.probes["top"].draw()
-            self.probes["bot"].draw()
 
