@@ -19,14 +19,14 @@ import pandas as pd
 class Saccade(BaseExperiment):
 
     def __init__(self, title, task, session, subject, debug,
-                 n_stabilize=4, path_length=8, refresh_rate=60, flash_dur=250, saccade_dur=600, frame_size=10):
+                 n_stabilize=4, path_length=8, refresh_rate=60, flash_frames=5, saccade_dur=600, frame_size=10):
 
         super().__init__(title, task, session, subject, debug)
 
         self.n_stabilize = n_stabilize
         self.path_length = path_length
         self.refresh_rate = refresh_rate
-        self.flash_dur = flash_dur
+        self.flash_frames = flash_frames
         self.saccade_dur = saccade_dur
         self.frame_size = frame_size
 
@@ -54,7 +54,7 @@ class Saccade(BaseExperiment):
         frame_size = deg2pix(degrees=self.frame_size, monitor=self.monitor)
 
         # get the FIPS frame
-        fips_frame = FIPS(win=self.window, size=frame_size, pos=[-3, 3], name='FIPSFrame', path_length=self.path_length)
+        fips_stim = FIPS(win=self.window, size=frame_size, pos=[-3, 3], name='FIPSFrame', path_length=self.path_length)
 
         # define the critical region
         # when gaze leaves this region (after cue) the target will disappear
@@ -122,7 +122,7 @@ class Saccade(BaseExperiment):
                 # drift correction
                 checked = False
                 while not checked:
-                    fips_frame.fixation.draw()
+                    fips_stim.fixation.draw()
                     self.window.flip()
                     checked = tracker.drift_correction()
 
@@ -138,7 +138,7 @@ class Saccade(BaseExperiment):
 
                 # 1) FIXATION PERIOD:
                 # fixation appears for some random amount of time uniformly sampled from 400 to 600 ms
-                fips_frame.fixation.autoDraw = True
+                fips_stim.fixation.autoDraw = True
                 self.window.flip()
                 core.wait(np.round(np.random.choice(400, 600) / 1000, 3))
 
@@ -149,22 +149,35 @@ class Saccade(BaseExperiment):
                 logging.info(f"\tFIXATION STARTED at {fix_tstart}")
 
                 # 2) STABILIZATION PERIOD
-                for osc in range(self.n_stabilize):
-
+                path_frames = np.floor(fips_stim.path_length * (1/trial["speed"]))
+                for osc in range(int(self.n_stabilize + trial["cue_delay"])):
                     # the trial_frames lists have redundant information
                     # they include the actual number of each frame, not the overall length of each period
-                    for fr in range(len(trial_frames["stabilize"])):
-                        if fr <
+                    for fr in range(path_frames):
+                        fips_stim.frame.pos += [trial["speed"], 0]
+                    for fr in range(self.flash_frames):
+                        fips_stim.probes["top"].draw()
+                        fips_stim.probes["bot"].draw()
+                    for fr in range(path_frames):
+                        fips_stim.frame.pos -= [trial["speed"], 0]
+                    for fr in range(self.flash_frames):
+                        fips_stim.probes["top"].draw()
+                        fips_stim.probes["bot"].draw()
 
-                    stim.fixation.draw()
-                    if stim.fixation.contains(gaze_pos):
-                        fix_ok = True
-                    else:
-                        bad_trials.append(trial)
-                        try:
-                            block.next()
-                        except StopIteration:
-                            print("End of Block")
+                # 3) CUE PERIOD
+                fips_stim.probes[trial["target"]].color = 'green'
+                for fr in range(path_frames):
+                    fips_stim.frame.pos += [trial["speed"], 0]
+                for fr in range(self.flash_frames):
+                    fips_stim.probes["top"].draw()
+                    fips_stim.probes["bot"].draw()
+                for fr in range(path_frames):
+                    fips_stim.frame.pos -= [trial["speed"], 0]
+                for fr in range(self.flash_frames):
+                    fips_stim.probes["top"].draw()
+                    fips_stim.probes["bot"].draw()
+
+                fips_stim.probes[trial["target"]].color = 'red'
 
             self.window.recordFrameIntervals = False
 
@@ -184,7 +197,6 @@ class Saccade(BaseExperiment):
         logging.info(f"Session: \t{self.SESSION}")
         logging.info("==================================================================")
 
-
     def exp_dataframe(self):
         """
 
@@ -194,8 +206,8 @@ class Saccade(BaseExperiment):
         """
         # important data
         columns = [
-            "sub", "block", "task", "trial_n" # general
-            "fixation_dur", "frame_speed", "target_pos", "cue_delay",  # stimulus-related
+            "sub", "block", "task", "trial_n"  # general
+            "fixation_dur", "frame_speed", "target", "cue_delay",  # stimulus-related
             "saccade_pos", "saccade_latency", "saccade_offset"  # response-related
         ]
 
@@ -244,10 +256,6 @@ class Saccade(BaseExperiment):
 
         return df
 
-    def make_motion_seq(self, trial):
-
-
-
     def make_trial_frames(self, trial):
         """
 
@@ -267,14 +275,13 @@ class Saccade(BaseExperiment):
         v_frame = deg2pix(degrees=trial["frame_speed"], monitor=self.monitor) / self.refresh_rate
 
         # convert timing from ms to number of frames
-        flash_frames = np.floor(self.ms2frame(self.flash_dur))
         saccade_dur = np.floor(self.ms2frame(self.saccade_dur))
 
         # velocity of the frame is in pixel/frame
         # since the motion cycle is for a full path + 2 flashes at the end points, the velocity of the frame will be
         # for half a path - one flash duration
         path_duration = path_length * (1/v_frame)
-        motion_cycle = (path_duration + flash_frames) * 2
+        motion_cycle = (path_duration + self.flash_frames) * 2
         fix_dur = np.floor(self.ms2frame(np.random.uniform(400, 600)))
 
         # durations of a given trial in frames
