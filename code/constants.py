@@ -1,8 +1,8 @@
 # MAIN
-DUMMYMODE = False  # False for gaze contingent display, True for dummy mode (using mouse or joystick)
+DUMMYMODE = True  # False for gaze contingent display, True for dummy mode (using mouse or joystick)
 LOGFILENAME = 'default'  # logfilename, without path
 LOGFILE = LOGFILENAME[:]  # .txt; adding path before logfilename is optional; logs responses (NOT eye movements, these are stored in an EDF file!)
-TRIALS = 5
+TRIALS = 10
 
 # DISPLAY
 # used in libscreen, for the *_display functions. The values may be adjusted,
@@ -10,8 +10,8 @@ TRIALS = 5
 SCREENNR = 0  # number of the screen used for displaying experiment
 DISPTYPE = 'psychopy'  # either 'psychopy' or 'pygame'
 DISPSIZE = (1920, 1080)  # canvas size
-SCREENSIZE = (55, 30)  # physical display size in cm
-MOUSEVISIBLE = False  # mouse visibility
+SCREENSIZE = (80, 30)  # physical display size in cm
+MOUSEVISIBLE = True  # mouse visibility
 BGC = (125, 125, 125)  # backgroundcolour
 FGC = (0, 0, 0)  # foregroundcolour
 
@@ -39,7 +39,7 @@ JOYTIMEOUT = None # None for no timeout, or a value in milliseconds
 
 # EYETRACKER
 # general
-TRACKERTYPE = 'smi' # either 'smi', 'eyelink' or 'dummy' (NB: if DUMMYMODE is True, trackertype will be set to dummy automatically)
+TRACKERTYPE = 'eyelink' # either 'smi', 'eyelink' or 'dummy' (NB: if DUMMYMODE is True, trackertype will be set to dummy automatically)
 SACCVELTHRESH = 35 # degrees per second, saccade velocity threshold
 SACCACCTHRESH = 9500 # degrees per second, saccade acceleration threshold
 # EyeLink only
