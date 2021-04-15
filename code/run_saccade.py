@@ -11,7 +11,8 @@ import numpy as np
 
 from psychopy import visual, data, monitors, core, logging, info, event
 from psychopy.tools.monitorunittools import deg2pix
-from pygaze import eyetracker, display
+from pygaze import eyetracker, libscreen
+import pygaze
 
 # ============================================================
 #                          SETUP
@@ -32,31 +33,36 @@ sub_id = f"{sub_id:02d}"
 
 # Display
 # mon_width = 55
-mon_width = 80
+# mon_width = 80
+mon_width = 38
 # mon_size = (1920, 1080)
-mon_size = (3440, 1440)
+# mon_size = (3440, 1440)
+mon_size = (2560, 1440)
 refresh_rate = 60
 # mon = monitors.Monitor(name="OLED", width=mon_width, distance=60)
-mon = monitors.Monitor(name="curved", width=mon_width, distance=60)
+# mon = monitors.Monitor(name="curved", width=mon_width, distance=60)
+mon = monitors.Monitor(name="blade", width=mon_width, distance=60)
 mon.setSizePix(mon_size)
 mon.save()
 
 # Window
-disp = display.Display()
-win = visual.Window(
-    size=[1920, 1080],
-    fullscr=False,
-    allowGUI=False,
-    monitor=mon,
-    screen=0,
-    units='pix',
-    gamma=None,
-    name='SaccadeWindow',
-    waitBlanking=True
-)
+# disp = display.Display()
+disp = libscreen.Display(moniotr=mon)
+# win = visual.Window(
+#     size=[1920, 1080],
+#     fullscr=False,
+#     allowGUI=False,
+#     monitor=mon,
+#     screen=0,
+#     units='pix',
+#     gamma=None,
+#     name='SaccadeWindow',
+#     waitBlanking=True
+# )
+win = pygaze.expdisplay
 
 # Eye-tracker
-tracker = eyetracker.EyeTracker(win)
+tracker = eyetracker.EyeTracker(disp)
 
 # ============================================================
 #                          Stimulus
@@ -226,7 +232,7 @@ for idx, block in enumerate(block_handlers):
                 probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
                 probe_top.draw()
                 probe_bot.draw()
-                t0 = win.flip()
+                t0 = win.show()
 
             probe_top.color = 'red'
             probe_bot.color = 'red'
