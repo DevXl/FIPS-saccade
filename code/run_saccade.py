@@ -32,33 +32,24 @@ LOG_DIR = PATH.parent / "data" / "log"
 sub_id = f"{sub_id:02d}"
 
 # Display
-# mon_width = 55
-# mon_width = 80
-mon_width = 38
-# mon_size = (1920, 1080)
-# mon_size = (3440, 1440)
-mon_size = (2560, 1440)
+my_monitors = {
+    "oled": {
+        "size_cm": (73, 33),
+        "size_px": (1920, 1080)
+    }
+    "razer": {
+        "size_cm": (38, 20),
+        "size_px": (2560, 1440)
+    }
+}
+mon_name = "razer"
 refresh_rate = 60
-# mon = monitors.Monitor(name="OLED", width=mon_width, distance=60)
-# mon = monitors.Monitor(name="curved", width=mon_width, distance=60)
-mon = monitors.Monitor(name="blade", width=mon_width, distance=20)
-mon.setSizePix(mon_size)
+mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=60)
+mon.setSizePix(my_monitors[mon_name]["size_px"])
 mon.save()
 
 # Window
-# disp = display.Display()
 disp = libscreen.Display(moniotr=mon)
-# win = visual.Window(
-#     size=[1920, 1080],
-#     fullscr=False,
-#     allowGUI=False,
-#     monitor=mon,
-#     screen=0,
-#     units='pix',
-#     gamma=None,
-#     name='SaccadeWindow',
-#     waitBlanking=True
-# )
 win = pygaze.expdisplay
 
 # Eye-tracker
