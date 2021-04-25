@@ -118,9 +118,7 @@ for target in ["top", "bot"]:
                 "target": target,
                 "speed": np.round(speed, 2),
                 "speed_px": np.round(speeds_px[i], 2),
-                "motion_cycle": motion_cycles[i],  # in seconds
-                "delay": np.round(np.random.uniform(400, 600)),  # delay before start in ms
-                "t_cue": np.random.choice(cues_cycles)
+                "motion_cycle": motion_cycles[i] * 1000
             }
         )
 
@@ -171,6 +169,12 @@ for idx, block in enumerate(block_handlers):
         #     win.flip()
         #     drift = tracker.drift_correction()
 
+        # Trial params
+        probe_top.pos = [60, frame_stim.pos[1] + probe_shift]
+        probe_bot.pos = [-60, frame_stim.pos[1] - probe_shift]
+        n_cue = np.random.randint(4, 10)  # between 4 and 9
+        delay = np.round(np.random.uniform(400, 600))
+
         # start eye tracking
         tracker.start_recording()
         tracker.status_msg(f"trial {n}")
@@ -178,13 +182,10 @@ for idx, block in enumerate(block_handlers):
 
         # fixation period
         fix.autoDraw = True
-        core.wait(trial["delay"]/1000)
+        core.wait(delay/1000)
 
         frame_stim.pos = frame_start_pos
         move_frames = trial["motion_cycle"] * refresh_rate
-
-        probe_top.pos = [60, frame_stim.pos[1] + probe_shift]
-        probe_bot.pos = [-60, frame_stim.pos[1] - probe_shift]
 
         # move frame for stabilization period
         for s in range(n_stabilize):
@@ -210,31 +211,47 @@ for idx, block in enumerate(block_handlers):
                 win.flip()
 
         # pre-cue motion and cue
-        print(trial["t_cue"]-1)
-        for c in range(int(trial["t_cue"])):
+        for c in range(n_cue):
 
             if c == trial["t_cue"] - 1:
                 if trial["target"] == "top":
                     probe_top.color = 'blue'
                 else:
                     probe_bot.color = 'blue'
-            
-            for fr in range(int(move_frames)):
-                if c % 2:
-                    frame_stim.pos -= [trial["speed_px"], 0]
-                else:
-                    frame_stim.pos += [trial["speed_px"], 0]
-                frame_stim.draw()
-                win.flip()
 
-            for fr in range(flash_frames):
-                if c % 2:
-                    # probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
-                    probe_bot.draw()
-                else:
-                    # probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
+            if not c % 2:  # even
+                if c == n_cue - 1:
+                    probe_top.color = 'blue'
+                for fr in range(int(move_frames)):
+                    frame_stim.pos += [trial["speed_px"], 0]
+                    win.flip()
+                for fr in range(int(flash_frames)):
                     probe_top.draw()
-                t0 = win.flip()
+                    win.flip()
+            else:  # odd
+                if c == n_cue - 1:
+                    probe_top.color = 'blue'
+                for fr in range(int(move_frames)):
+                    frame_stim.pos -= [trial["speed_px"], 0]
+                    win.flip()
+                for fr in range(int(flash_frames)):
+                    probe_bot.draw()
+                    win.flip()
+            #
+            # for fr in range(int(move_frames)):
+            #     if c % 2:
+            #         frame_stim.pos -= [trial["speed_px"], 0]
+            #     else:
+            #         frame_stim.pos += [trial["speed_px"], 0]
+            #     frame_stim.draw()
+            #     win.flip()
+            #
+            # for fr in range(flash_frames):
+            #     if c % 2:
+            #         probe_bot.draw()
+            #     else:
+            #         probe_top.draw()
+            #     t0 = win.flip()
             
             win.flip()
             probe_top.color = 'red'
