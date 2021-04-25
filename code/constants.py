@@ -1,6 +1,6 @@
 # MAIN
-DUMMYMODE = True  # False for gaze contingent display, True for dummy mode (using mouse or joystick)
-LOGFILENAME = 'default'  # logfilename, without path
+DUMMYMODE = False  # False for gaze contingent display, True for dummy mode (using mouse or joystick)
+LOGFILENAME = 'testing'  # logfilename, without path
 LOGFILE = LOGFILENAME[:]  # .txt; adding path before logfilename is optional; logs responses (NOT eye movements, these are stored in an EDF file!)
 TRIALS = 10
 
@@ -10,7 +10,8 @@ TRIALS = 10
 SCREENNR = 0  # number of the screen used for displaying experiment
 DISPTYPE = 'psychopy'  # either 'psychopy' or 'pygame'
 DISPSIZE = (1920, 1080)  # canvas size
-SCREENSIZE = (38, 20)  # physical display size in cm
+SCREENSIZE = (73, 33)  # physical display size in cm
+SCREENDIST = 60
 MOUSEVISIBLE = True  # mouse visibility
 FULLSCREEN = False
 BGC = (125, 125, 125)  # backgroundcolour
@@ -41,8 +42,8 @@ JOYTIMEOUT = None # None for no timeout, or a value in milliseconds
 # EYETRACKER
 # general
 TRACKERTYPE = 'eyelink' # either 'smi', 'eyelink' or 'dummy' (NB: if DUMMYMODE is True, trackertype will be set to dummy automatically)
-SACCVELTHRESH = 35 # degrees per second, saccade velocity threshold
-SACCACCTHRESH = 9500 # degrees per second, saccade acceleration threshold
+SACCVELTHRESH = 100 # degrees per second, saccade velocity threshold
+SACCACCTHRESH = 100 # degrees per second, saccade acceleration threshold
 # EyeLink only
 # SMI only
 SMIIP = '127.0.0.1'
