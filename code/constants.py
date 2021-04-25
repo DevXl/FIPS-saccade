@@ -1,5 +1,5 @@
 # MAIN
-DUMMYMODE = False  # False for gaze contingent display, True for dummy mode (using mouse or joystick)
+DUMMYMODE = True  # False for gaze contingent display, True for dummy mode (using mouse or joystick)
 LOGFILENAME = 'testing'  # logfilename, without path
 LOGFILE = LOGFILENAME[:]  # .txt; adding path before logfilename is optional; logs responses (NOT eye movements, these are stored in an EDF file!)
 TRIALS = 10
@@ -9,14 +9,9 @@ TRIALS = 10
 # but not the constant's names
 SCREENNR = 0  # number of the screen used for displaying experiment
 DISPTYPE = 'psychopy'  # either 'psychopy' or 'pygame'
-<<<<<<< HEAD
 DISPSIZE = (1920, 1080)  # canvas size
 SCREENSIZE = (73, 33)  # physical display size in cm
 SCREENDIST = 60
-=======
-DISPSIZE = (1024, 768)  # canvas size
-SCREENSIZE = (38, 20)  # physical display size in cm
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 MOUSEVISIBLE = True  # mouse visibility
 FULLSCREEN = False
 BGC = (125, 125, 125)  # backgroundcolour
