@@ -41,7 +41,7 @@ mon_size = (2560, 1440)
 refresh_rate = 60
 # mon = monitors.Monitor(name="OLED", width=mon_width, distance=60)
 # mon = monitors.Monitor(name="curved", width=mon_width, distance=60)
-mon = monitors.Monitor(name="blade", width=mon_width, distance=60)
+mon = monitors.Monitor(name="blade", width=mon_width, distance=20)
 mon.setSizePix(mon_size)
 mon.save()
 
@@ -67,7 +67,7 @@ tracker = eyetracker.EyeTracker(disp)
 # ============================================================
 #                          Stimulus
 # ============================================================
-frame_size = 2.4
+frame_size = 3
 frame_size_px = deg2pix(degrees=frame_size, monitor=mon)
 frame_coords = [
     [-frame_size_px/2, frame_size_px/2], [frame_size_px/2, frame_size_px/2],
@@ -93,10 +93,11 @@ fix_size = 1
 fix_size_px = deg2pix(fix_size, mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
-probe_size = .5
+probe_size = .8
 probe_size_px = deg2pix(probe_size, mon)
-probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red')
-probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red')
+probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
+probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
+
 # ============================================================
 #                          Procedure
 # ============================================================
@@ -109,13 +110,14 @@ conditions = []
 path_len = 10  # degrees
 path_len_px = deg2pix(path_len, monitor=mon)
 
-motion_cycles = np.array([1.5, 2, 2.5])  # seconds
+# motion_cycles = np.array([1.5, 2, 2.5])  # seconds
+motion_cycles = np.array([.5])
 motion_cycles_fr = motion_cycles * refresh_rate
 
 speeds = path_len / motion_cycles_fr  # deg/fr
 speeds_px = path_len_px / motion_cycles_fr  # px/fr
 
-cues_cycles = [i+1 for i in range(4)]  # how many half cycles before cuing
+cues_cycles = [i for i in range(4, 9)]  # how many half cycles before cuing
 
 for target in ["top", "bot"]:
     for i, speed in enumerate(speeds):
@@ -134,7 +136,7 @@ block_handlers = []
 # n_blocks = 12
 n_blocks = 1
 # total_trials = 384
-total_trials = 1
+total_trials = 2
 
 for block in range(n_blocks):
     b = data.TrialHandler(
@@ -152,7 +154,8 @@ for block in range(n_blocks):
 # Runtime parameters
 n_stabilize = 1  # number of transitions needed to stabilize the effect
 flash_frames = 5  # frames
-frame_start_pos = [-path_len_px/2, deg2pix(6, mon)]
+frame_shift = 10
+frame_start_pos = [-path_len_px/2, deg2pix(frame_shift, mon)]
 probe_shift = deg2pix(2, mon)
 win.mouseVisible = False
 
@@ -189,30 +192,38 @@ for idx, block in enumerate(block_handlers):
         move_frames = trial["motion_cycle"] * refresh_rate
 
         # move frame for stabilization period
-        for _ in range(n_stabilize):
+        for s in range(n_stabilize):
             for fr in range(int(move_frames)):
                 frame_stim.pos += [trial["speed_px"], 0]
                 frame_stim.draw()
                 win.flip()
+
+            probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
             for fr in range(flash_frames):
-                probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
-                probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
                 probe_top.draw()
-                probe_bot.draw()
                 win.flip()
+            
             for fr in range(int(move_frames)):
                 frame_stim.pos -= [trial["speed_px"], 0]
                 frame_stim.draw()
                 win.flip()
+
+            probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
             for fr in range(flash_frames):
-                probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
-                probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
-                probe_top.draw()
                 probe_bot.draw()
                 win.flip()
 
         # pre-cue motion and cue
+        print(trial["t_cue"]-1)
         for c in range(int(trial["t_cue"])):
+
+            print(c)
+            if c == trial["t_cue"] - 1:
+                if trial["target"] == "top":
+                    probe_top.color = 'blue'
+                else:
+                    probe_bot.color = 'blue'
+            
             for fr in range(int(move_frames)):
                 if c % 2:
                     frame_stim.pos -= [trial["speed_px"], 0]
@@ -221,26 +232,32 @@ for idx, block in enumerate(block_handlers):
                 frame_stim.draw()
                 win.flip()
 
-            if c == trial["t_cue"] - 1:
-                if trial["target"] == "top":
-                    probe_top.color = 'blue'
-                else:
-                    probe_bot.color = 'blue'
-
             for fr in range(flash_frames):
-                probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
-                probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
-                probe_top.draw()
-                probe_bot.draw()
-                t0 = win.show()
-
+                if c % 2:
+                    # probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
+                    # probe_bot.draw()
+                    probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
+                    probe_top.draw()
+                else:
+                    # probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
+                    # probe_top.draw()
+                    probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
+                    probe_bot.draw()
+                t0 = win.flip()
+            
+            win.flip()
             probe_top.color = 'red'
             probe_bot.color = 'red'
-            win.flip()
+            
 
         # wait for saccade
-        t1, startpos = tracker.wait_for_saccade_start()
+        t1, startpos1 = tracker.wait_for_saccade_start()
         endtime, startpos, endpos = tracker.wait_for_saccade_end()
+        
+        print(f"Endtime: {endtime}")
+        print(f"Endpos: {endpos}")
+        print(f"Startpos 1: {startpos1}")
+        print(f"Startpos 2: {startpos}")
 
         # stop tracking
         tracker.stop_recording()
