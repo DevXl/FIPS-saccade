@@ -45,7 +45,7 @@ my_monitors = {
 # mon_name = "oled"
 mon_name = "razer"
 refresh_rate = 60
-mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=60)
+mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=20)
 mon.setSizePix(my_monitors[mon_name]["size_px"])
 mon.save()
 
@@ -65,8 +65,13 @@ frame_coords = [
     [-frame_size_px/2, frame_size_px/2], [frame_size_px/2, frame_size_px/2],
     [frame_size_px/2, -frame_size_px/2], [-frame_size_px/2, -frame_size_px/2]
 ]
+path_len = 10  # degrees
+path_len_px = deg2pix(path_len, monitor=mon)
+frame_yshift = 10
+frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, mon)]
 frame_stim = visual.ShapeStim(
     win=win,
+    pos=frame_start_pos,
     lineWidth=5,
     lineColor=[-1, -1, -1],
     fillColor=None,
@@ -86,9 +91,13 @@ fix_size_px = deg2pix(fix_size, mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
 probe_size = .7
+probe_xshift = deg2pix(1.5, mon)
+probe_yshift = deg2pix(1.5, mon)
 probe_size_px = deg2pix(probe_size, mon)
-probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
-probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
+probe_top = visual.Circle(win=win, radius=probe_size_px, pos=[probe_xshift, frame_stim.pos[1] + probe_yshift],
+                          fillColor='red', contrast=.6)
+probe_bot = visual.Circle(win=win, radius=probe_size_px, pos=[-probe_xshift, frame_stim.pos[1] - probe_yshift],
+                          fillColor='red', contrast=.6)
 
 # ============================================================
 #                          Procedure
@@ -99,23 +108,21 @@ block_clock = core.Clock()
 
 # Blocks
 conditions = []
-path_len = 10  # degrees
-path_len_px = deg2pix(path_len, monitor=mon)
 
 # motion_cycles = np.array([1.5, 2, 2.5])  # seconds
-motion_cycles = np.array([.5])
+motion_cycles = np.array([.3, .5, .7])
 motion_cycles_fr = motion_cycles * refresh_rate
 
 speeds = path_len / motion_cycles_fr  # deg/fr
 speeds_px = path_len_px / motion_cycles_fr  # px/fr
 
-cues_cycles = [i for i in range(4, 9)]  # how many half cycles before cuing
+quadrants = [1, 2]
 
-for target in ["top", "bot"]:
+for quad in quadrants:
     for i, speed in enumerate(speeds):
         conditions.append(
             {
-                "target": target,
+                "quadrant": quad,
                 "speed": np.round(speed, 2),
                 "speed_px": np.round(speeds_px[i], 2),
                 "motion_cycle": motion_cycles[i] * 1000
@@ -144,9 +151,6 @@ for block in range(n_blocks):
 # Runtime parameters
 n_stabilize = 5  # number of transitions needed to stabilize the effect
 flash_frames = 3  # frames
-frame_shift = 10
-frame_start_pos = [-path_len_px/2, deg2pix(frame_shift, mon)]
-probe_shift = deg2pix(2, mon)
 win.mouseVisible = False
 
 # loop blocks
@@ -170,10 +174,9 @@ for idx, block in enumerate(block_handlers):
         #     drift = tracker.drift_correction()
 
         # Trial params
-        probe_top.pos = [60, frame_stim.pos[1] + probe_shift]
-        probe_bot.pos = [-60, frame_stim.pos[1] - probe_shift]
         n_cue = np.random.randint(4, 10)  # between 4 and 9
         delay = np.round(np.random.uniform(400, 600))
+        frame_stim.pos = frame_start_pos
 
         # start eye tracking
         tracker.start_recording()
@@ -184,8 +187,7 @@ for idx, block in enumerate(block_handlers):
         fix.autoDraw = True
         core.wait(delay/1000)
 
-        frame_stim.pos = frame_start_pos
-        move_frames = trial["motion_cycle"] * refresh_rate
+        move_frames = (trial["motion_cycle"]/1000) * refresh_rate
 
         # move frame for stabilization period
         for s in range(n_stabilize):
@@ -213,26 +215,24 @@ for idx, block in enumerate(block_handlers):
         # pre-cue motion and cue
         for c in range(n_cue):
 
-            if c == trial["t_cue"] - 1:
-                if trial["target"] == "top":
-                    probe_top.color = 'blue'
-                else:
-                    probe_bot.color = 'blue'
-
             if not c % 2:  # even
                 if c == n_cue - 1:
+                    target = "top"
                     probe_top.color = 'blue'
                 for fr in range(int(move_frames)):
                     frame_stim.pos += [trial["speed_px"], 0]
+                    frame_stim.draw()
                     win.flip()
                 for fr in range(int(flash_frames)):
                     probe_top.draw()
                     win.flip()
             else:  # odd
                 if c == n_cue - 1:
-                    probe_top.color = 'blue'
+                    probe_bot.color = 'blue'
+                    target = "bot"
                 for fr in range(int(move_frames)):
                     frame_stim.pos -= [trial["speed_px"], 0]
+                    frame_stim.draw()
                     win.flip()
                 for fr in range(int(flash_frames)):
                     probe_bot.draw()
@@ -265,13 +265,14 @@ for idx, block in enumerate(block_handlers):
         tracker.stop_recording()
 
         # save the data
-        if trial["target"] == "top":
+        block.data.add("n_cue", n_cue)
+        block.data.add("saccade_delay", delay)
+        if target == "top":
             block.data.add("target_pos_x", np.round((probe_top.pos[0] + my_monitors[mon_name]["size_px"][0]/2), 2))
             block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_top.pos[1]), 2))
         else:
             block.data.add("target_pos_x", np.round((probe_bot.pos[0] + my_monitors[mon_name]["size_px"][0]/2), 2))
             block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_bot.pos[1]), 2))
-        # block.data.add("saccade_delay", t1 - t0)
         block.data.add("saccade_spos_x", np.round(startpos[0], 2))
         block.data.add("saccade_spos_y", np.round(startpos[1], 2))
         block.data.add("saccade_epos_x", np.round(endpos[0], 2))
