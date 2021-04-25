@@ -36,21 +36,14 @@ my_monitors = {
     "oled": {
         "size_cm": (73, 33),
         "size_px": (1920, 1080)
-<<<<<<< HEAD
     },
-=======
-    }
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
     "razer": {
         "size_cm": (38, 20),
         "size_px": (2560, 1440)
     }
 }
-<<<<<<< HEAD
-mon_name = "oled"
-=======
+# mon_name = "oled"
 mon_name = "razer"
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 refresh_rate = 60
 mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=60)
 mon.setSizePix(my_monitors[mon_name]["size_px"])
@@ -92,11 +85,7 @@ fix_size = 1
 fix_size_px = deg2pix(fix_size, mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
-<<<<<<< HEAD
 probe_size = .7
-=======
-probe_size = .8
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 probe_size_px = deg2pix(probe_size, mon)
 probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
 probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
@@ -114,11 +103,7 @@ path_len = 10  # degrees
 path_len_px = deg2pix(path_len, monitor=mon)
 
 # motion_cycles = np.array([1.5, 2, 2.5])  # seconds
-<<<<<<< HEAD
-motion_cycles = np.array([.4])
-=======
 motion_cycles = np.array([.5])
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 motion_cycles_fr = motion_cycles * refresh_rate
 
 speeds = path_len / motion_cycles_fr  # deg/fr
@@ -143,11 +128,7 @@ block_handlers = []
 # n_blocks = 12
 n_blocks = 1
 # total_trials = 384
-<<<<<<< HEAD
-total_trials = 50
-=======
 total_trials = 2
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 
 for block in range(n_blocks):
     b = data.TrialHandler(
@@ -163,13 +144,8 @@ for block in range(n_blocks):
 #                          Run
 # ============================================================
 # Runtime parameters
-<<<<<<< HEAD
 n_stabilize = 5  # number of transitions needed to stabilize the effect
 flash_frames = 3  # frames
-=======
-n_stabilize = 1  # number of transitions needed to stabilize the effect
-flash_frames = 5  # frames
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 frame_shift = 10
 frame_start_pos = [-path_len_px/2, deg2pix(frame_shift, mon)]
 probe_shift = deg2pix(2, mon)
@@ -217,16 +193,10 @@ for idx, block in enumerate(block_handlers):
                 frame_stim.draw()
                 win.flip()
 
-<<<<<<< HEAD
             # probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
             for fr in range(flash_frames):
                 probe_top.draw()
                 # frame_stim.draw()
-=======
-            probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
-            for fr in range(flash_frames):
-                probe_top.draw()
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
                 win.flip()
             
             for fr in range(int(move_frames)):
@@ -234,11 +204,6 @@ for idx, block in enumerate(block_handlers):
                 frame_stim.draw()
                 win.flip()
 
-<<<<<<< HEAD
-            # probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
-=======
-            probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
             for fr in range(flash_frames):
                 probe_bot.draw()
                 # frame_stim.draw()
@@ -247,14 +212,8 @@ for idx, block in enumerate(block_handlers):
         # pre-cue motion and cue
         print(trial["t_cue"]-1)
         for c in range(int(trial["t_cue"])):
-<<<<<<< HEAD
-            
-            if c == int(trial["t_cue"] - 1):
-=======
 
-            print(c)
             if c == trial["t_cue"] - 1:
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
                 if trial["target"] == "top":
                     probe_top.color = 'blue'
                 else:
@@ -270,44 +229,20 @@ for idx, block in enumerate(block_handlers):
 
             for fr in range(flash_frames):
                 if c % 2:
-<<<<<<< HEAD
                     # probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
                     probe_bot.draw()
                 else:
                     # probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
                     probe_top.draw()
-=======
-                    # probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
-                    # probe_bot.draw()
-                    probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
-                    probe_top.draw()
-                else:
-                    # probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] - probe_shift]
-                    # probe_top.draw()
-                    probe_bot.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
-                    probe_bot.draw()
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
                 t0 = win.flip()
             
             win.flip()
             probe_top.color = 'red'
             probe_bot.color = 'red'
             
-<<<<<<< HEAD
         # wait for saccade
         t1, startpos = tracker.wait_for_fixation_end()
         t2, endpos = tracker.wait_for_fixation_start()
-=======
-
-        # wait for saccade
-        t1, startpos1 = tracker.wait_for_saccade_start()
-        endtime, startpos, endpos = tracker.wait_for_saccade_end()
-        
-        print(f"Endtime: {endtime}")
-        print(f"Endpos: {endpos}")
-        print(f"Startpos 1: {startpos1}")
-        print(f"Startpos 2: {startpos}")
->>>>>>> 92c8d2aca735eb33414c25870d1a4130c49a43f2
 
         # stop tracking
         tracker.stop_recording()
