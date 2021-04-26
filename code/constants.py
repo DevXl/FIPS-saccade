@@ -9,11 +9,13 @@ TRIALS = 10
 # but not the constant's names
 SCREENNR = 0  # number of the screen used for displaying experiment
 DISPTYPE = 'psychopy'  # either 'psychopy' or 'pygame'
-DISPSIZE = (1920, 1080)  # canvas size
-SCREENSIZE = (73, 33)  # physical display size in cm
+# DISPSIZE = (1920, 1080)  # canvas size
+DISPSIZE = (2560, 1440)
+# SCREENSIZE = (73, 33)  # physical display size in cm
+SCREENSIZE = (38, 20)
 SCREENDIST = 60
 MOUSEVISIBLE = True  # mouse visibility
-FULLSCREEN = False
+FULLSCREEN = True
 BGC = (125, 125, 125)  # backgroundcolour
 FGC = (0, 0, 0)  # foregroundcolour
 
