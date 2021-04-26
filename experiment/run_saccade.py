@@ -160,9 +160,9 @@ flash_frames = 5  # frames
 win.mouseVisible = False
 
 # loop blocks
-for idx, block in enumerate(block_handlers):
+for block_idx, block in enumerate(block_handlers):
 
-    print(f"============> Block number {idx + 1}")
+    print(f"============> Block number {block_idx + 1}")
 
     # calibrate the eye tracker
     tracker.calibrate()
@@ -266,7 +266,10 @@ for idx, block in enumerate(block_handlers):
 
         # save the data
         block.data.add("n_cue", n_cue)
-        block.data.add("saccade_delay", delay)
+        block.data.add("saccade_delay", delay)  
+        block.data.add("sub", sub_id)
+        block.data.add("ses", ses)
+        block.data.add("run", block_idx)
         if target == "top":
             block.data.add("target_pos_x", np.round((my_monitors[mon_name]["size_px"][0]/2 + probe_top.pos[0]), 2))
             block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_top.pos[1]), 2))
