@@ -14,19 +14,19 @@ from psychopy.tools.monitorunittools import deg2pix
 from pygaze import eyetracker, libscreen
 import pygaze
 
-# ============================================================
-#                          SETUP
-# ============================================================
+# =========================================================================== #
+# --------------------------------------------------------------------------- #
+# -------------------------------- ! SETUP ---------------------------------- #
+# --------------------------------------------------------------------------- #
+# =========================================================================== #
 
-# Experiment 
-# names 
-NAME = "FIPSSaccade"
-TASK = "saccade"
+# Paths
+TASK = "FIPSSaccade"
 PATH = Path('.').resolve() 
 sub_id = int(sys.argv[1])
-ses = sys.argv[2]
+ses = int(sys.argv[2])
 
-# directories
+# Directories
 DATA_DIR = PATH.parent / "data" / "eye"
 LOG_DIR = PATH.parent / "data" / "log"
 sub_id = f"{sub_id:02d}"
@@ -38,7 +38,7 @@ my_monitors = {
         "size_px": (1920, 1080)
     },
     "razer": {
-        "size_cm": (38, 20),
+        "size_cm": (39, 20),
         "size_px": (2560, 1440)
     }
 }
@@ -56,9 +56,13 @@ win = pygaze.expdisplay
 # Eye-tracker
 tracker = eyetracker.EyeTracker(disp)
 
-# ============================================================
-#                          Stimulus
-# ============================================================
+# =========================================================================== #
+# --------------------------------------------------------------------------- #
+# ------------------------------ ! STIMULUS --------------------------------- #
+# --------------------------------------------------------------------------- #
+# =========================================================================== #
+
+# Frame
 frame_size = 3.2
 frame_size_px = deg2pix(degrees=frame_size, monitor=mon)
 frame_coords = [
@@ -90,7 +94,7 @@ fix_size = 1
 fix_size_px = deg2pix(fix_size, mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
-probe_size = .7
+probe_size = .8
 probe_xshift = deg2pix(1, mon)
 probe_yshift = deg2pix(1.5, mon)
 probe_size_px = deg2pix(probe_size, mon)
@@ -99,9 +103,12 @@ probe_bot_pos = [-probe_xshift, frame_stim.pos[1] - probe_yshift]
 probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
 probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
 
-# ============================================================
-#                          Procedure
-# ============================================================
+# =========================================================================== #
+# --------------------------------------------------------------------------- #
+# ------------------------------ ! PROCEDURE -------------------------------- #
+# --------------------------------------------------------------------------- #
+# =========================================================================== #
+
 # timing
 trial_clock = core.Clock()
 block_clock = core.Clock()
@@ -109,15 +116,14 @@ block_clock = core.Clock()
 # Blocks
 conditions = []
 
-# motion_cycles = np.array([1.5, 2, 2.5])  # seconds
-motion_cycles = np.array([.3, .5, .7])
+motion_cycles = np.array([.25, .5])
 motion_cycles_fr = motion_cycles * refresh_rate
 
 speeds = path_len / motion_cycles_fr  # deg/fr
 speeds_px = path_len_px / motion_cycles_fr  # px/fr
 
 quadrants = [1, 2]
-quad_shift = deg2pix(10, mon)
+quad_shift = deg2pix(12, mon)
 
 for quad in quadrants:
     for i, speed in enumerate(speeds):
@@ -134,7 +140,7 @@ block_handlers = []
 # n_blocks = 12
 n_blocks = 1
 # total_trials = 384
-total_trials = 2
+total_trials = 1
 
 for block in range(n_blocks):
     b = data.TrialHandler(
@@ -146,12 +152,15 @@ for block in range(n_blocks):
         )
     block_handlers.append(b)
 
-# ============================================================
-#                          Run
-# ============================================================
+# =========================================================================== #
+# --------------------------------------------------------------------------- #
+# -------------------------------- ! RUN ------------------------------------ #
+# --------------------------------------------------------------------------- #
+# =========================================================================== #
+
 # Runtime parameters
 n_stabilize = 5  # number of transitions needed to stabilize the effect
-flash_frames = 3  # frames
+flash_frames = 5  # frames
 win.mouseVisible = False
 
 # loop blocks
@@ -258,10 +267,10 @@ for idx, block in enumerate(block_handlers):
         block.data.add("n_cue", n_cue)
         block.data.add("saccade_delay", delay)
         if target == "top":
-            block.data.add("target_pos_x", np.round((probe_top.pos[0] + my_monitors[mon_name]["size_px"][0]/2), 2))
+            block.data.add("target_pos_x", np.round((my_monitors[mon_name]["size_px"][0]/2 + probe_top.pos[0]), 2))
             block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_top.pos[1]), 2))
         else:
-            block.data.add("target_pos_x", np.round((probe_bot.pos[0] + my_monitors[mon_name]["size_px"][0]/2), 2))
+            block.data.add("target_pos_x", np.round((my_monitors[mon_name]["size_px"][0]/2 + probe_bot.pos[0]), 2))
             block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_bot.pos[1]), 2))
         block.data.add("saccade_spos_x", np.round(startpos[0], 2))
         block.data.add("saccade_spos_y", np.round(startpos[1], 2))
@@ -269,6 +278,12 @@ for idx, block in enumerate(block_handlers):
         block.data.add("saccade_epos_y", np.round(endpos[1], 2))
         block.data.add("saccade_dur", np.round(t2 - t1, 2))
     win.recordFrameIntervals = False
+
+# =========================================================================== #
+# --------------------------------------------------------------------------- #
+# -------------------------------- ! WRAP UP -------------------------------- #
+# --------------------------------------------------------------------------- #
+# =========================================================================== #
 
 for block, handler in enumerate(block_handlers):
     run_file = DATA_DIR / f"sub-{sub_id}_ses-{ses}_run-{block+1}_task-{TASK}_eyetracking"
