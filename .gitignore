@@ -10,5 +10,4 @@ scratch.py
 **/*.pyc
 
 # Cache
-code/.iohpid
-code/__pycache__/
+**/*__pycache__/
