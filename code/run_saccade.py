@@ -59,7 +59,7 @@ tracker = eyetracker.EyeTracker(disp)
 # ============================================================
 #                          Stimulus
 # ============================================================
-frame_size = 3
+frame_size = 3.2
 frame_size_px = deg2pix(degrees=frame_size, monitor=mon)
 frame_coords = [
     [-frame_size_px/2, frame_size_px/2], [frame_size_px/2, frame_size_px/2],
@@ -72,7 +72,7 @@ frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, mon)]
 frame_stim = visual.ShapeStim(
     win=win,
     pos=frame_start_pos,
-    lineWidth=5,
+    lineWidth=8,
     lineColor=[-1, -1, -1],
     fillColor=None,
     vertices=frame_coords,
@@ -91,13 +91,13 @@ fix_size_px = deg2pix(fix_size, mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
 probe_size = .7
-probe_xshift = deg2pix(1.5, mon)
+probe_xshift = deg2pix(1, mon)
 probe_yshift = deg2pix(1.5, mon)
 probe_size_px = deg2pix(probe_size, mon)
-probe_top = visual.Circle(win=win, radius=probe_size_px, pos=[probe_xshift, frame_stim.pos[1] + probe_yshift],
-                          fillColor='red', contrast=.6)
-probe_bot = visual.Circle(win=win, radius=probe_size_px, pos=[-probe_xshift, frame_stim.pos[1] - probe_yshift],
-                          fillColor='red', contrast=.6)
+probe_top_pos = [probe_xshift, frame_stim.pos[1] + probe_yshift]
+probe_bot_pos = [-probe_xshift, frame_stim.pos[1] - probe_yshift]
+probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
+probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
 
 # ============================================================
 #                          Procedure
@@ -117,6 +117,7 @@ speeds = path_len / motion_cycles_fr  # deg/fr
 speeds_px = path_len_px / motion_cycles_fr  # px/fr
 
 quadrants = [1, 2]
+quad_shift = deg2pix(10, mon)
 
 for quad in quadrants:
     for i, speed in enumerate(speeds):
@@ -177,11 +178,22 @@ for idx, block in enumerate(block_handlers):
         n_cue = np.random.randint(4, 10)  # between 4 and 9
         delay = np.round(np.random.uniform(400, 600))
         frame_stim.pos = frame_start_pos
+        probe_top.pos = probe_top_pos
+        probe_bot.pos = probe_bot_pos
+        
+        if trial["quadrant"] == 1:
+            frame_stim.pos[0] -= quad_shift
+            probe_top.pos[0] -= quad_shift
+            probe_bot.pos[0] -= quad_shift
+        else:
+            frame_stim.pos[0] += quad_shift
+            probe_top.pos[0] += quad_shift
+            probe_bot.pos[0] += quad_shift
 
         # start eye tracking
         tracker.start_recording()
         tracker.status_msg(f"trial {n}")
-        tracker.log("start_trial {} target {}".format(n, trial["target"]))
+        tracker.log("start_trial {} quadrant {}".format(n, trial["quadrant"]))
 
         # fixation period
         fix.autoDraw = True
@@ -193,28 +205,21 @@ for idx, block in enumerate(block_handlers):
         for s in range(n_stabilize):
             for fr in range(int(move_frames)):
                 frame_stim.pos += [trial["speed_px"], 0]
-                frame_stim.draw()
+                frame_stim.draw() 
                 win.flip()
-
-            # probe_top.pos = [frame_stim.pos[0], frame_stim.pos[1] + probe_shift]
             for fr in range(flash_frames):
                 probe_top.draw()
-                # frame_stim.draw()
                 win.flip()
-            
             for fr in range(int(move_frames)):
                 frame_stim.pos -= [trial["speed_px"], 0]
                 frame_stim.draw()
                 win.flip()
-
             for fr in range(flash_frames):
                 probe_bot.draw()
-                # frame_stim.draw()
                 win.flip()
 
         # pre-cue motion and cue
         for c in range(n_cue):
-
             if not c % 2:  # even
                 if c == n_cue - 1:
                     target = "top"
@@ -237,21 +242,6 @@ for idx, block in enumerate(block_handlers):
                 for fr in range(int(flash_frames)):
                     probe_bot.draw()
                     win.flip()
-            #
-            # for fr in range(int(move_frames)):
-            #     if c % 2:
-            #         frame_stim.pos -= [trial["speed_px"], 0]
-            #     else:
-            #         frame_stim.pos += [trial["speed_px"], 0]
-            #     frame_stim.draw()
-            #     win.flip()
-            #
-            # for fr in range(flash_frames):
-            #     if c % 2:
-            #         probe_bot.draw()
-            #     else:
-            #         probe_top.draw()
-            #     t0 = win.flip()
             
             win.flip()
             probe_top.color = 'red'
