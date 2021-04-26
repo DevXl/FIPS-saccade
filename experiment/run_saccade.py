@@ -10,7 +10,7 @@ import sys
 import numpy as np
 
 from psychopy import visual, data, monitors, core, logging, info, event
-from psychopy.tools.monitorunittools import deg2pix
+from psychopy.tools.monitorunittools import deg2pix, pix2deg
 from pygaze import eyetracker, libscreen
 import pygaze
 
@@ -92,7 +92,7 @@ fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-
 
 probe_size = 1
 probe_xshift = deg2pix(1.5, mon)
-probe_yshift = deg2pix(1.5, mon)
+probe_yshift = deg2pix(2, mon)
 probe_size_px = deg2pix(probe_size, mon)
 probe_top_pos = [probe_xshift, frame_stim.pos[1] + probe_yshift]
 probe_bot_pos = [-probe_xshift, frame_stim.pos[1] - probe_yshift]
@@ -136,7 +136,7 @@ block_handlers = []
 # n_blocks = 12
 n_blocks = 1
 # total_trials = 384
-total_trials = 1
+total_trials = 4
 
 for block in range(n_blocks):
     b = data.TrialHandler(
@@ -270,17 +270,43 @@ for block_idx, block in enumerate(block_handlers):
         block.data.add("sub", sub_id)
         block.data.add("ses", ses)
         block.data.add("run", block_idx)
-        if target == "top":
-            block.data.add("target_pos_x", np.round((my_monitors[mon_name]["size_px"][0]/2 + probe_top.pos[0]), 2))
-            block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_top.pos[1]), 2))
+        block.data.add("target", target)
+        if catch:
+            block.data.add("trial_type", "catch")
         else:
-            block.data.add("target_pos_x", np.round((my_monitors[mon_name]["size_px"][0]/2 + probe_bot.pos[0]), 2))
-            block.data.add("target_pos_y", np.round((my_monitors[mon_name]["size_px"][1]/2 - probe_bot.pos[1]), 2))
-        block.data.add("saccade_spos_x", np.round(startpos[0], 2))
-        block.data.add("saccade_spos_y", np.round(startpos[1], 2))
-        block.data.add("saccade_epos_x", np.round(endpos[0], 2))
-        block.data.add("saccade_epos_y", np.round(endpos[1], 2))
+            block.data.add("trial_type", "test")
         block.data.add("saccade_dur", np.round(t2 - t1, 2))
+
+        # pixels
+        if target == "top":
+            block.data.add("target_pos_x", np.round((probe_top.pos[0]), 2))
+            block.data.add("target_pos_y", np.round((probe_top.pos[1]), 2))
+        else:
+            block.data.add("target_pos_x", np.round((probe_bot.pos[0]), 2))
+            block.data.add("target_pos_y", np.round((probe_bot.pos[1]), 2))
+        w = my_monitors[mon_name]["size_px"][0]/2
+        h = my_monitors[mon_name]["size_px"][1]/2
+        block.data.add("saccade_spos_x", np.round(startpos[0] - w, 2))
+        block.data.add("saccade_spos_y", np.round(startpos[1] - h, 2))
+        block.data.add("saccade_epos_x", np.round(endpos[0] - w, 2))
+        block.data.add("saccade_epos_y", np.round(endpos[1] - h, 2))
+
+        # degrees
+        if target == "top":
+            block.data.add("target_pos_x", np.round(pix2deg(probe_top.pos[0], mon), 2))
+            block.data.add("target_pos_y", np.round(pix2deg(probe_top.pos[1], mon), 2))
+        else:
+            block.data.add("target_pos_x_deg", np.round(pix2deg(probe_bot.pos[0], mon), 2))
+            block.data.add("target_pos_y_deg", np.round(pix2deg(probe_bot.pos[1], mon), 2))
+        sac_spos_x_deg = np.round(pix2deg((startpos[0] - w), mon), 2)
+        sac_spos_y_deg = np.round(pix2deg((startpos[1] - h), mon), 2)
+        sac_epos_x_deg = np.round(pix2deg((endpos[0] - w), mon), 2)
+        sac_epos_y_deg = np.round(pix2deg((endpos[1] - h), mon), 2)
+        block.data.add("saccade_spos_x_deg", np.round(sac_spos_x_deg, 2))
+        block.data.add("saccade_spos_y_deg", np.round(-sac_spos_y_deg, 2))  # pixel coordinates are inverted
+        block.data.add("saccade_epos_x_deg", np.round(sac_epos_x_deg, 2))
+        block.data.add("saccade_epos_y_deg", np.round(-sac_epos_y_deg, 2))  # pixel coordinates are inverted
+
     win.recordFrameIntervals = False
 
 # =========================================================================== #
