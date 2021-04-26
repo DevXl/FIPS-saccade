@@ -16,7 +16,7 @@ DISPSIZE = (2560, 1440)
 SCREENSIZE = (38, 20)
 SCREENDIST = 60
 MOUSEVISIBLE = True  # mouse visibility
-FULLSCREEN = False
+FULLSCREEN = True
 BGC = (125, 125, 125)  # backgroundcolour
 FGC = (0, 0, 0)  # foregroundcolour
 

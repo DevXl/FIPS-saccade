@@ -45,7 +45,7 @@ my_monitors = {
 # mon_name = "oled"
 mon_name = "razer"
 refresh_rate = 60
-mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=60)
+mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=20)
 mon.setSizePix(my_monitors[mon_name]["size_px"])
 mon.save()
 
@@ -90,8 +90,8 @@ fix_size = 1
 fix_size_px = deg2pix(fix_size, mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
-probe_size = .8
-probe_xshift = deg2pix(1, mon)
+probe_size = 1
+probe_xshift = deg2pix(1.5, mon)
 probe_yshift = deg2pix(1.5, mon)
 probe_size_px = deg2pix(probe_size, mon)
 probe_top_pos = [probe_xshift, frame_stim.pos[1] + probe_yshift]
@@ -112,7 +112,7 @@ block_clock = core.Clock()
 # Blocks
 conditions = []
 
-motion_cycles = np.array([.2, .4])
+motion_cycles = np.array([.2])
 motion_cycles_fr = motion_cycles * refresh_rate
 
 speeds = path_len / motion_cycles_fr  # deg/fr

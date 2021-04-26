@@ -6,4 +6,4 @@
 - [ ] Move the frame for one more half-cycle after probe flashes.
 - [ ] Add GUI.
 - [ ] Use pandas to recycle trials.
-- [ ] Add catch trials.
+- [x] Add catch trials.
