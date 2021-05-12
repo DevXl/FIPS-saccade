@@ -1,7 +1,7 @@
 #!usr/bin/env python
 """
 Created at 2/6/21
-@author: devxl
+@author: DevXI
 
 Testing script for saccade task
 """
