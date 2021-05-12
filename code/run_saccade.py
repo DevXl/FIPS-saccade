@@ -22,7 +22,7 @@ import pygaze
 
 # Paths
 TASK = "FIPSSaccade"
-PATH = Path('.').resolve() 
+PATH = Path('../experiment').resolve()
 sub_id = int(sys.argv[1])
 ses = int(sys.argv[2])
 
