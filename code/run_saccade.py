@@ -14,6 +14,8 @@ from psychopy.tools.monitorunittools import deg2pix, pix2deg
 from pygaze import eyetracker, libscreen
 import pygaze
 
+from .helpers import move_frame, setup_path, get_monitors
+
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
 # -------------------------------- ! SETUP ---------------------------------- #
@@ -21,36 +23,21 @@ import pygaze
 # =========================================================================== #
 
 # Paths
-TASK = "FIPSSaccade"
-PATH = Path('../experiment').resolve()
+EXP = "FIPSSaccade"
+ROOTDIR = Path(__file__).resolve().parent.parent
 sub_id = int(sys.argv[1])
-ses = int(sys.argv[2])
-
-# Directories
-DATA_DIR = PATH.parent / "data" / f"sub-{sub_id:02d}"
-if not DATA_DIR.exists():
-    DATA_DIR.mkdir()
+ses = sys.argv[2]
+TASKDIR = setup_path(sub_id, ROOTDIR, "itrack")
 
 # Display
-my_monitors = {
-    "oled": {
-        "size_cm": (73, 33),
-        "size_px": (1920, 1080)
-    },
-    "razer": {
-        "size_cm": (39, 20),
-        "size_px": [2560, 1440]
-    }
-}
 mon_name = "oled"
-# mon_name = "razer"
-refresh_rate = 60
-mon = monitors.Monitor(name=mon_name, width=my_monitors[mon_name]["size_cm"][0], distance=60)
-mon.setSizePix(my_monitors[mon_name]["size_px"])
-mon.save()
+mon_specs = get_monitors(mon_name)
+exp_mon = monitors.Monitor(name=mon_name, width=mon_specs["size_cm"][0], distance=mon_specs["dist"])
+exp_mon.setSizePix(mon_specs["size_px"])
+exp_mon.save()
 
 # Window
-disp = libscreen.Display(moniotr=mon)
+disp = libscreen.Display(moniotr=exp_mon)
 win = pygaze.expdisplay
 
 # Eye-tracker
@@ -64,15 +51,15 @@ tracker = eyetracker.EyeTracker(disp)
 
 # Frame
 frame_size = 3
-frame_size_px = deg2pix(degrees=frame_size, monitor=mon)
+frame_size_px = deg2pix(degrees=frame_size, monitor=exp_mon)
 frame_coords = [
     [-frame_size_px/2, frame_size_px/2], [frame_size_px/2, frame_size_px/2],
     [frame_size_px/2, -frame_size_px/2], [-frame_size_px/2, -frame_size_px/2]
 ]
 path_len = 10  # degrees
-path_len_px = deg2pix(path_len, monitor=mon)
+path_len_px = deg2pix(path_len, monitor=exp_mon)
 frame_yshift = 8
-frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, mon)]
+frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, exp_mon)]
 frame_stim = visual.ShapeStim(
     win=win,
     pos=frame_start_pos,
@@ -87,13 +74,13 @@ frame_stim = visual.ShapeStim(
 )
 
 fix_size = 1
-fix_size_px = deg2pix(fix_size, mon)
+fix_size_px = deg2pix(fix_size, exp_mon)
 fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
 
 probe_size = .8
-probe_xshift = deg2pix(2, mon)
-probe_yshift = deg2pix(2, mon)
-probe_size_px = deg2pix(probe_size, mon)
+probe_xshift = deg2pix(2, exp_mon)
+probe_yshift = deg2pix(2, exp_mon)
+probe_size_px = deg2pix(probe_size, exp_mon)
 probe_top_pos = [probe_xshift, frame_stim.pos[1] + probe_yshift]
 probe_bot_pos = [-probe_xshift, frame_stim.pos[1] - probe_yshift]
 probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
@@ -113,13 +100,13 @@ block_clock = core.Clock()
 conditions = []
 
 motion_cycles = np.array([.7])
-motion_cycles_fr = motion_cycles * refresh_rate
+motion_cycles_fr = motion_cycles * mon_specs["refresh_rate"]
 
 speeds = path_len / motion_cycles_fr  # deg/fr
 speeds_px = path_len_px / motion_cycles_fr  # px/fr
 
 quadrants = [1, 2]
-quad_shift = deg2pix(8, mon)
+quad_shift = deg2pix(8, exp_mon)
 
 for quad in quadrants:
     for i, speed in enumerate(speeds):
@@ -205,7 +192,7 @@ for block_idx, block in enumerate(block_handlers):
         fix.autoDraw = True
         core.wait(delay/1000)
 
-        move_frames = (trial["motion_cycle"]/1000) * refresh_rate
+        move_frames = (trial["motion_cycle"]/1000) * mon_specs["refresh_rate"]
 
         # move frame for stabilization period
         for s in range(n_stabilize):
@@ -285,8 +272,8 @@ for block_idx, block in enumerate(block_handlers):
         else:
             block.data.add("target_pos_x", np.round((probe_bot.pos[0]), 2))
             block.data.add("target_pos_y", np.round((probe_bot.pos[1]), 2))
-        w = my_monitors[mon_name]["size_px"][0]/2
-        h = my_monitors[mon_name]["size_px"][1]/2
+        w = mon_specs["size_px"][0]/2
+        h = mon_specs["size_px"][1]/2
         block.data.add("saccade_spos_x", np.round(startpos[0] - w, 2))
         block.data.add("saccade_spos_y", np.round(startpos[1] - h, 2))
         block.data.add("saccade_epos_x", np.round(endpos[0] - w, 2))
@@ -294,15 +281,15 @@ for block_idx, block in enumerate(block_handlers):
 
         # degrees
         if target == "top":
-            block.data.add("target_pos_x_deg", np.round(pix2deg(probe_top.pos[0], mon), 2))
-            block.data.add("target_pos_y_deg", np.round(pix2deg(probe_top.pos[1], mon), 2))
+            block.data.add("target_pos_x_deg", np.round(pix2deg(probe_top.pos[0], exp_mon), 2))
+            block.data.add("target_pos_y_deg", np.round(pix2deg(probe_top.pos[1], exp_mon), 2))
         else:
-            block.data.add("target_pos_x_deg", np.round(pix2deg(probe_bot.pos[0], mon), 2))
-            block.data.add("target_pos_y_deg", np.round(pix2deg(probe_bot.pos[1], mon), 2))
-        sac_spos_x_deg = np.round(pix2deg((startpos[0] - w), mon), 2)
-        sac_spos_y_deg = np.round(pix2deg((startpos[1] - h), mon), 2)
-        sac_epos_x_deg = np.round(pix2deg((endpos[0] - w), mon), 2)
-        sac_epos_y_deg = np.round(pix2deg((endpos[1] - h), mon), 2)
+            block.data.add("target_pos_x_deg", np.round(pix2deg(probe_bot.pos[0], exp_mon), 2))
+            block.data.add("target_pos_y_deg", np.round(pix2deg(probe_bot.pos[1], exp_mon), 2))
+        sac_spos_x_deg = np.round(pix2deg((startpos[0] - w), exp_mon), 2)
+        sac_spos_y_deg = np.round(pix2deg((startpos[1] - h), exp_mon), 2)
+        sac_epos_x_deg = np.round(pix2deg((endpos[0] - w), exp_mon), 2)
+        sac_epos_y_deg = np.round(pix2deg((endpos[1] - h), exp_mon), 2)
         block.data.add("saccade_spos_x_deg", np.round(sac_spos_x_deg, 2))
         block.data.add("saccade_spos_y_deg", np.round(-sac_spos_y_deg, 2))  # pixel coordinates are inverted
         block.data.add("saccade_epos_x_deg", np.round(sac_epos_x_deg, 2))
@@ -317,7 +304,7 @@ for block_idx, block in enumerate(block_handlers):
 # =========================================================================== #
 
 for block, handler in enumerate(block_handlers):
-    run_file = DATA_DIR / f"sub-{sub_id}_ses-{ses}_run-{block+1}_task-{TASK}_eyetracking"
+    run_file = TASKDIR / f"sub-{sub_id}_ses-{ses}_run-{block+1}_task-{EXP}_eyetracki ng"
     handler.saveAsWideText(fileName=str(run_file), delim=',')
 
 tracker.close()
