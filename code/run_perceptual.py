@@ -9,7 +9,7 @@ from psychopy import visual, data, monitors, event, core
 import numpy as np
 import sys
 from pathlib import Path
-from helpers import move_frame
+from helpers import move_frame, setup_path, get_monitors
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -24,52 +24,22 @@ ses = sys.argv[2]
 
 # Directories and files
 # The structure loosely follows BIDS conventions
+EXP = "FIPSPerceptual"
 ROOTDIR = Path(__file__).resolve().parent.parent  # find the current file and go up too root dir
-DATADIR = ROOTDIR / "data"
-if not DATADIR.exists():
-    print("Making the data directory...")
-    DATADIR.mkdir()
-
-sub_id = f"{sub_id:02d}"
-SUBDIR = DATADIR / f"sub-{sub_id}"
-if not SUBDIR.exists():
-    print("Making the subject directory...")
-    SUBDIR.mkdir()
-
-TASK = "FIPSPerceptual"
+TASKDIR = setup_path(sub_id, ROOTDIR, "psycphys")
 run = 1
-run_file = DATADIR / "psycphy" / f"sub-{sub_id}_ses-{ses}_run-{run}_task-{TASK}_psychophysics"
+run_file = TASKDIR / f"sub-{sub_id}_ses-{ses}_run-{run}_task-{EXP}_psychophysics.csv"
 
 # Monitor
-test_monitors = {
-    "lab": {
-        "size_cm": (54, 0),
-        "size_px": (1280, 720),
-        "dist": 57,
-        "refresh_rate": 120
-    },
-    "razerblade": {
-        "size_cm": (38, 20),
-        "size_px": (2560, 1440),
-        "dist": 60,
-        "refresh_rate": 165
-    },
-    "ryan": {
-        "size_cm": (0, 0),
-        "size_px": (0, 0),
-        "dist": 60,
-        "refresh_rate": 60
-    }
-}
-
 mon_name = 'lab'
-exp_mon = monitors.Monitor(name=mon_name, width=test_monitors[mon_name]["size_cm"][0], distance=test_monitors["dist"])
-exp_mon.setSizePix(test_monitors[mon_name]["size_px"])
+mon_specs = get_monitors(mon_name)
+exp_mon = monitors.Monitor(name=mon_name, width=mon_specs["size_cm"][0], distance=mon_specs["dist"])
+exp_mon.setSizePix(mon_specs["size_px"])
 exp_mon.save()
 
 # Window
 mon_size = [1024, 768]  # for testing
-# mon_size = test_monitors[mon_name]["size_px"]
+# mon_size = mon_specs["size_px"]
 exp_win = visual.Window(monitor=exp_mon, fullscr=False, units='deg', size=mon_size)
 
 # =========================================================================== #
@@ -120,7 +90,6 @@ bot_probe = visual.Circle(
     autoLog=False
 )
 
-
 # Concentric fixation circles
 fix_pos = [0, 0]
 inner_fix = visual.Circle(win=exp_win, radius=0.1, pos=fix_pos, lineColor='black', autoLog=False)
@@ -152,7 +121,7 @@ bot_match = visual.Circle(
 # Instructions
 inst_stim = visual.TextStim(win=exp_win, pos=fix_pos, autoLog=False)
 inst_msg = "Compare the position of WHITE CIRCLES to BLACK CIRCLES.\n\n" \
-      "If they are MATCH, press the 'M' key on the keyboard.\n\n" \
+      "If they MATCH, press the 'M' key on the keyboard.\n\n" \
       "If they are DIFFERENT, press the 'D' key.\n\n" \
       "Press the SPACEBAR to start the experiment."
 out_stim = visual.TextStim(win=exp_win, pos=fix_pos, autoLog=False)
@@ -166,16 +135,16 @@ out_msg = "Thank you for participating!"
 
 # Conditions
 frame_sides = ['L', 'R']
-n_trials = 10
+n_trials = 5
 
 # QUEST staircase
 stairs = data.QuestHandler(
-    startVal=1,
-    startValSd=.5,
+    startVal=.5,
+    startValSd=1,
     pThreshold=.82,
     nTrials=n_trials,
     gamma=.01,
-    minVal=0,
+    minVal=-frame_size/2,
     maxVal=frame_size/2
 )
 
@@ -187,10 +156,10 @@ stairs = data.QuestHandler(
 
 # Initialize run params
 motion_cycle_dur = 700  # ms
-motion_cycle = int(motion_cycle_dur * test_monitors[mon_name]["refresh_rate"]/1000)  # in frames
+motion_cycle = int(motion_cycle_dur * mon_specs["refresh_rate"]/1000)  # in frames
 motion_len = 10  # length of the path that the frame moves in degrees
 frame_speed = motion_len / motion_cycle  # deg/f
-n_stabilize = 2  # number of transitions needed to stabilize the effect
+n_stabilize = 1  # number of transitions needed to stabilize the effect
 flash_frames = 4  # number of frames to show the probe
 frame_pos_shift = 8  # how many degrees in both x and y the initial position of frame shifts from fixation
 
@@ -201,8 +170,11 @@ t_start = exp_clock.getTime()
 # start the staircase
 for offset in stairs:
 
-    # randomly select which side the frame will appear at
+    print(f"Offset: {np.round(offset, 2)}")
+
+    # select a random side
     side = np.random.choice(frame_sides)
+    stairs.addOtherData("side", side)
 
     # set the positions of frame and probes based on side and offset
     if side == 'L':
@@ -225,12 +197,16 @@ for offset in stairs:
     inner_fix.autoDraw = True
     outer_fix.autoDraw = True
     frame_stim.autoDraw = True
+    # turn off the comparison circles if they were being drawn before
+    top_match.autoDraw = False
+    bot_match.autoDraw = False
 
     # start recording frame intervals
     exp_win.recordFrameIntervals = True
 
     # Stabilization period: here the comparison stimuli are not present and the subject cannot make a response
     for stab in range(n_stabilize):
+        frame_stim.pos = fpos
         move_frame([top_probe, bot_probe], frame_stim, motion_cycle, frame_speed, flash_frames, exp_win)
 
     # Discrimination period: now show the match stimuli and wait for an answer
@@ -242,17 +218,19 @@ for offset in stairs:
         bot_match.autoDraw = True
 
         # show motion
+        frame_stim.pos = fpos
         move_frame([top_probe, bot_probe], frame_stim, motion_cycle, frame_speed, flash_frames, exp_win)
 
         # get response
         keys = event.getKeys()
         for key in keys:
             if key == 'd':  # a different response is a "missed" trial
-                stairs.addResponse(0)
-                resp = True
-            elif key == 'M':  # a match response is a "detected" trial
                 stairs.addResponse(1)
                 resp = True
+            elif key == 'm':  # a match response is a "detected" trial
+                stairs.addResponse(0)
+                resp = True
+                
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -260,12 +238,16 @@ for offset in stairs:
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
+print(stairs.data)
+print(f"Intensities: {stairs.intensities}")
+print(f"Other data: {stairs.otherData}")
+
 # clock it
 t_end = exp_clock.getTime()
 print(f"The experiment took {np.round((t_end - t_start), 2)}s")
 
 # save
-stairs.saveAsText(run_file, delim=',')
+stairs.saveAsText(str(run_file), delim=',')
 
 # end
 exp_win.close()
