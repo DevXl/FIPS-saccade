@@ -6,10 +6,12 @@ Created at 2/22/21
 Perceptual task to get FIPS measurements to use for the saccade task
 """
 from psychopy import visual, data, monitors, event, core
+from helpers import move_frame, setup_path, get_monitors
+
 import numpy as np
+import pandas as pd
 import sys
 from pathlib import Path
-from helpers import move_frame, setup_path, get_monitors
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -28,7 +30,7 @@ EXP = "FIPSPerceptual"
 ROOTDIR = Path(__file__).resolve().parent.parent  # find the current file and go up too root dir
 TASKDIR = setup_path(sub_id, ROOTDIR, "psycphys")
 run = 1
-run_file = TASKDIR / f"sub-{sub_id}_ses-{ses}_run-{run}_task-{EXP}_psychophysics.csv"
+run_file = TASKDIR / f"sub-{sub_id:02d}_ses-{ses}_run-{run}_task-{EXP}_staircase"
 
 # Monitor
 mon_name = 'lab'
@@ -49,7 +51,7 @@ exp_win = visual.Window(monitor=exp_mon, fullscr=False, units='deg', size=mon_si
 # =========================================================================== #
 
 # Frame
-frame_size = 3
+frame_size = 2.6
 frame_coords = [
     [-frame_size/2, frame_size/2], [frame_size/2, frame_size/2],
     [frame_size/2, -frame_size/2], [-frame_size/2, -frame_size/2]
@@ -68,8 +70,8 @@ frame_stim = visual.ShapeStim(
 )
 
 # Target
-probe_margin = -1
-probe_size = .9
+probe_margin = -.2
+probe_size = 1.2
 probe_color = .1
 top_probe = visual.Circle(
     win=exp_win,
@@ -119,12 +121,11 @@ bot_match = visual.Circle(
 )
 
 # Instructions
-inst_stim = visual.TextStim(win=exp_win, pos=fix_pos, autoLog=False)
+msg_stim = visual.TextStim(win=exp_win, pos=fix_pos, wrapWidth=10, autoLog=False)
 inst_msg = "Compare the position of WHITE CIRCLES to BLACK CIRCLES.\n\n" \
       "If they MATCH, press the 'M' key on the keyboard.\n\n" \
       "If they are DIFFERENT, press the 'D' key.\n\n" \
       "Press the SPACEBAR to start the experiment."
-out_stim = visual.TextStim(win=exp_win, pos=fix_pos, autoLog=False)
 out_msg = "Thank you for participating!"
 
 # =========================================================================== #
@@ -135,15 +136,15 @@ out_msg = "Thank you for participating!"
 
 # Conditions
 frame_sides = ['L', 'R']
-n_trials = 5
+n_trials = 50
 
 # QUEST staircase
 stairs = data.QuestHandler(
-    startVal=.5,
-    startValSd=1,
-    pThreshold=.82,
+    startVal=.1,
+    startValSd=.5,
+    pThreshold=.63,
     nTrials=n_trials,
-    gamma=.01,
+    gamma=.02,
     minVal=-frame_size/2,
     maxVal=frame_size/2
 )
@@ -157,7 +158,7 @@ stairs = data.QuestHandler(
 # Initialize run params
 motion_cycle_dur = 700  # ms
 motion_cycle = int(motion_cycle_dur * mon_specs["refresh_rate"]/1000)  # in frames
-motion_len = 10  # length of the path that the frame moves in degrees
+motion_len = 8  # length of the path that the frame moves in degrees
 frame_speed = motion_len / motion_cycle  # deg/f
 n_stabilize = 1  # number of transitions needed to stabilize the effect
 flash_frames = 4  # number of frames to show the probe
@@ -168,6 +169,11 @@ exp_clock = core.Clock()
 t_start = exp_clock.getTime()
 
 # start the staircase
+msg_stim.text = inst_msg
+msg_stim.draw()
+exp_win.flip()
+event.waitKeys(keyList=['space'])
+
 for offset in stairs:
 
     print(f"Offset: {np.round(offset, 2)}")
@@ -211,6 +217,7 @@ for offset in stairs:
 
     # Discrimination period: now show the match stimuli and wait for an answer
     resp = False
+    event.clearEvents()
     while not resp:
 
         # show the comparison circles
@@ -230,7 +237,15 @@ for offset in stairs:
             elif key == 'm':  # a match response is a "detected" trial
                 stairs.addResponse(0)
                 resp = True
-                
+
+    event.clearEvents()
+
+exp_win.flip()
+core.wait(1)
+msg_stim.text = out_msg
+msg_stim.draw()
+exp_win.flip()
+core.wait(1)
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -238,16 +253,25 @@ for offset in stairs:
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
-print(stairs.data)
-print(f"Intensities: {stairs.intensities}")
-print(f"Other data: {stairs.otherData}")
-
 # clock it
 t_end = exp_clock.getTime()
-print(f"The experiment took {np.round((t_end - t_start), 2)}s")
+print(f"The experiment took {np.round((t_end - t_start)/60, 2)}m and {np.round((t_end - t_start)%60), 0} seconds")
 
-# save
-stairs.saveAsText(str(run_file), delim=',')
+# save to csv
+exp_data = {
+    "side": stairs.otherData["side"],
+    "intensity": stairs.intensities,
+    "resp": stairs.data
+}
+df = pd.DataFrame(exp_data)
+df.to_csv(str(run_file) + ".csv", index=False)
+
+# save to pickle
+stairs.saveAsPickle(str(run_file))
+
+# save numpy
+np_data = np.array([stairs.intensities, stairs.data]).T  # first column is intensities and second column is responses
+np.save(str(run_file) + ".npy", np_data)
 
 # end
 exp_win.close()
