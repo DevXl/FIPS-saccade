@@ -52,14 +52,20 @@ def get_monitors(mon_name):
         "lab": {
             "size_cm": (54, 0),
             "size_px": (1280, 720),
-            "dist": 57,
+            "dist": 65,
             "refresh_rate": 120
         },
-        "razerblade": {
+        "OLED": {
+            "size_cm": (73, 33),
+            "size_px": (1920, 1080),
+            "dist": 60,
+            "refresh_rate": 60
+        },
+        "raz3rblade": {
             "size_cm": (38, 20),
             "size_px": (2560, 1440),
-            "dist": 60,
-            "refresh_rate": 165
+            "dist": 30,
+            "refresh_rate": 60
         },
         "ryan": {
             "size_cm": (0, 0),

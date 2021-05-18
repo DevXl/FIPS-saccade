@@ -6,7 +6,7 @@ Created at 2/22/21
 Perceptual task to get FIPS measurements to use for the saccade task
 """
 from psychopy import visual, data, monitors, event, core
-from helpers import move_frame, setup_path, get_monitors
+from fips_helpers import move_frame, setup_path, get_monitors
 
 import numpy as np
 import pandas as pd
@@ -23,21 +23,24 @@ from pathlib import Path
 # First one is subject number and second one is session
 sub_id = int(sys.argv[1])
 ses = sys.argv[2]
+run = sys.argv[3]
 
 # Directories and files
 # The structure loosely follows BIDS conventions
 EXP = "FIPSPerceptual"
+TASK = "psycphys"
 ROOTDIR = Path(__file__).resolve().parent.parent  # find the current file and go up too root dir
-TASKDIR = setup_path(sub_id, ROOTDIR, "psycphys")
-run = 1
-run_file = TASKDIR / f"sub-{sub_id:02d}_ses-{ses}_run-{run}_task-{EXP}_staircase"
+TASKDIR = setup_path(sub_id, ROOTDIR, TASK)
+run_file = TASKDIR / f"sub-{sub_id:02d}_ses-{ses}_run-{run}_task-{TASK}_exp-{EXP}_staircase"
+frames_file = str(run_file) + "FrameIntervals.log"
+log_file = str(run_file) + "RuntimeLog.log"
 
 # Monitor
-mon_name = 'lab'
+mon_name = 'RaZerBlade'
 mon_specs = get_monitors(mon_name)
 exp_mon = monitors.Monitor(name=mon_name, width=mon_specs["size_cm"][0], distance=mon_specs["dist"])
 exp_mon.setSizePix(mon_specs["size_px"])
-exp_mon.save()
+# exp_mon.save()
 
 # Window
 mon_size = [1024, 768]  # for testing
@@ -51,32 +54,25 @@ exp_win = visual.Window(monitor=exp_mon, fullscr=False, units='deg', size=mon_si
 # =========================================================================== #
 
 # Frame
-frame_size = 2.6
+frame_size = 2.4
 frame_coords = [
     [-frame_size/2, frame_size/2], [frame_size/2, frame_size/2],
     [frame_size/2, -frame_size/2], [-frame_size/2, -frame_size/2]
 ]
-frame_pos = [0, 0]
 frame_stim = visual.ShapeStim(
     win=exp_win,
-    lineWidth=5,
+    lineWidth=10,
     lineColor=[-1, -1, -1],
     fillColor=None,
     vertices=frame_coords,
     closeShape=True,
     size=frame_size,
-    autoLog=False,
-    autoDraw=False
-)
+    autoLog=False
+    )
 
 # Target
-probe_margin = -.2
-probe_size = 1.2
-probe_color = .1
 top_probe = visual.Circle(
     win=exp_win,
-    size=probe_size,
-    fillColor=1,
     lineColor=0,
     contrast=1,
     lineWidth=3,
@@ -84,8 +80,6 @@ top_probe = visual.Circle(
 )
 bot_probe = visual.Circle(
     win=exp_win,
-    size=probe_size,
-    fillColor=1,
     lineColor=0,
     contrast=1,
     lineWidth=3,
@@ -93,16 +87,12 @@ bot_probe = visual.Circle(
 )
 
 # Concentric fixation circles
-fix_pos = [0, 0]
-inner_fix = visual.Circle(win=exp_win, radius=0.1, pos=fix_pos, lineColor='black', autoLog=False)
-outer_fix = visual.Circle(win=exp_win, radius=0.25, pos=fix_pos, lineColor='black', autoLog=False)
+inner_fix = visual.Circle(win=exp_win, radius=0.1, lineColor='black', autoLog=False)
+outer_fix = visual.Circle(win=exp_win, radius=0.25, lineColor='black', autoLog=False)
 
 # Vertical circles to compare the probes' position to
-match_pos_shift = frame_size/2  # so the distance between them is as tall as the frame
 top_match = visual.Circle(
     win=exp_win,
-    size=probe_size,
-    pos=[fix_pos[0], fix_pos[1] + match_pos_shift],
     fillColor=-1,
     lineColor=0,
     contrast=1,
@@ -111,8 +101,6 @@ top_match = visual.Circle(
 )
 bot_match = visual.Circle(
     win=exp_win,
-    size=probe_size,
-    pos=[fix_pos[0], fix_pos[1] - match_pos_shift],
     fillColor=-1,
     lineColor=0,
     contrast=1,
@@ -121,8 +109,8 @@ bot_match = visual.Circle(
 )
 
 # Instructions
-msg_stim = visual.TextStim(win=exp_win, pos=fix_pos, wrapWidth=10, autoLog=False)
-inst_msg = "Compare the position of WHITE CIRCLES to BLACK CIRCLES.\n\n" \
+msg_stim = visual.TextStim(win=exp_win, wrapWidth=20, autoLog=False)
+inst_msg = "Compare the position of RED CIRCLES to BLACK CIRCLES.\n\n" \
       "If they MATCH, press the 'M' key on the keyboard.\n\n" \
       "If they are DIFFERENT, press the 'D' key.\n\n" \
       "Press the SPACEBAR to start the experiment."
@@ -134,8 +122,7 @@ out_msg = "Thank you for participating!"
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
-# Conditions
-frame_sides = ['L', 'R']
+# Blocks and trials
 n_trials = 50
 
 # QUEST staircase
@@ -155,25 +142,57 @@ stairs = data.QuestHandler(
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
-# Initialize run params
-motion_cycle_dur = 700  # ms
+# Initialize parameter
+
+# Stimulus
+probe_size = 1.2
+probe_color = [.1, -1, -1]
+fix_pos = [0, 0]
+probe_pos_shift = frame_size - probe_size / 2  # so the distance between them is as tall as the frame
+match_pos_size = probe_size / 2
+match_pos_shift = probe_pos_shift / 2
+
+top_probe.size = probe_size
+top_probe.fillColor = probe_color
+
+bot_probe.size = probe_size
+bot_probe.fillColor = probe_color
+
+top_match.size = match_pos_size
+top_match.pos = [fix_pos[0], fix_pos[1] + match_pos_shift]
+
+bot_match.size = match_pos_size
+bot_match.pos = [fix_pos[0], fix_pos[1] - match_pos_shift]
+
+msg_stim.pos = fix_pos
+inner_fix.pos = fix_pos
+outer_fix.pos = fix_pos
+
+# Runtime
+frame_sides = ['L', 'R']  # 1st and 2nd quadrants
+frame_pos_shift = 5  # how many degrees in both x and y the initial position of frame shifts from fixation
+
+motion_cycle_dur = 1000  # seconds
 motion_cycle = int(motion_cycle_dur * mon_specs["refresh_rate"]/1000)  # in frames
+
 motion_len = 8  # length of the path that the frame moves in degrees
 frame_speed = motion_len / motion_cycle  # deg/f
+
 n_stabilize = 1  # number of transitions needed to stabilize the effect
-flash_frames = 4  # number of frames to show the probe
-frame_pos_shift = 8  # how many degrees in both x and y the initial position of frame shifts from fixation
+
+flash_frames = 5  # number of frames to show the probe
 
 # clock it
 exp_clock = core.Clock()
 t_start = exp_clock.getTime()
 
-# start the staircase
+# show instruction message
 msg_stim.text = inst_msg
 msg_stim.draw()
 exp_win.flip()
 event.waitKeys(keyList=['space'])
 
+# start the staircase
 for offset in stairs:
 
     print(f"Offset: {np.round(offset, 2)}")
@@ -185,12 +204,12 @@ for offset in stairs:
     # set the positions of frame and probes based on side and offset
     if side == 'L':
         fpos = [-frame_pos_shift, frame_pos_shift]  # frame is at the first quadrant
-        tpos = [-frame_pos_shift - offset, frame_pos_shift + match_pos_shift]  # offset on x coords and shift on y
-        bpos = [-frame_pos_shift + offset, frame_pos_shift - match_pos_shift]
+        tpos = [-frame_pos_shift - offset, frame_pos_shift + probe_pos_shift] # offset on x coords and shift on y
+        bpos = [-frame_pos_shift + offset, frame_pos_shift - probe_pos_shift]
     else:
         fpos = [frame_pos_shift, frame_pos_shift]  # frame is at the first quadrant
-        tpos = [frame_pos_shift - offset, frame_pos_shift + match_pos_shift]  # offset on x coords and shift on y
-        bpos = [frame_pos_shift + offset, frame_pos_shift - match_pos_shift]
+        tpos = [frame_pos_shift - offset, frame_pos_shift + probe_pos_shift]  # offset on x coords and shift on y
+        bpos = [frame_pos_shift + offset, frame_pos_shift - probe_pos_shift]
 
     # set the positions
     frame_stim.pos = fpos
@@ -237,6 +256,9 @@ for offset in stairs:
             elif key == 'm':  # a match response is a "detected" trial
                 stairs.addResponse(0)
                 resp = True
+            elif key == 'escape':
+                exp_win.close()
+                core.quit()
 
     event.clearEvents()
 

@@ -14,7 +14,7 @@ from psychopy.tools.monitorunittools import deg2pix, pix2deg
 from pygaze import eyetracker, libscreen
 import pygaze
 
-from .helpers import move_frame, setup_path, get_monitors
+from fips_helpers import move_frame, setup_path, get_monitors
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -22,15 +22,24 @@ from .helpers import move_frame, setup_path, get_monitors
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
-# Paths
-EXP = "FIPSSaccade"
-ROOTDIR = Path(__file__).resolve().parent.parent
+# Get the args from commandline
+# First one is subject number and second one is session
 sub_id = int(sys.argv[1])
 ses = sys.argv[2]
-TASKDIR = setup_path(sub_id, ROOTDIR, "itrack")
+run = sys.argv[3]
+
+# Directories and files
+# The structure loosely follows BIDS conventions
+EXP = "FIPSSaccade"
+TASK = "iTrack"
+ROOTDIR = Path(__file__).resolve().parent.parent  # find the current file and go up too root dir
+TASKDIR = setup_path(sub_id, ROOTDIR, TASK)
+run_file = TASKDIR / f"sub-{sub_id:02d}_ses-{ses}_run-{run}_task-{TASK}_exp-{EXP}"
+frames_file = str(run_file) + "FrameIntervals.log"
+log_file = str(run_file) + "RuntimeLog.log"
 
 # Display
-mon_name = "oled"
+mon_name = "lab"
 mon_specs = get_monitors(mon_name)
 exp_mon = monitors.Monitor(name=mon_name, width=mon_specs["size_cm"][0], distance=mon_specs["dist"])
 exp_mon.setSizePix(mon_specs["size_px"])
@@ -38,7 +47,7 @@ exp_mon.save()
 
 # Window
 disp = libscreen.Display(moniotr=exp_mon)
-win = pygaze.expdisplay
+exp_win = pygaze.expdisplay
 
 # Eye-tracker
 tracker = eyetracker.EyeTracker(disp)
@@ -50,20 +59,15 @@ tracker = eyetracker.EyeTracker(disp)
 # =========================================================================== #
 
 # Frame
-frame_size = 3
+frame_size = 2.4
 frame_size_px = deg2pix(degrees=frame_size, monitor=exp_mon)
 frame_coords = [
     [-frame_size_px/2, frame_size_px/2], [frame_size_px/2, frame_size_px/2],
     [frame_size_px/2, -frame_size_px/2], [-frame_size_px/2, -frame_size_px/2]
 ]
-path_len = 10  # degrees
-path_len_px = deg2pix(path_len, monitor=exp_mon)
-frame_yshift = 8
-frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, exp_mon)]
 frame_stim = visual.ShapeStim(
-    win=win,
-    pos=frame_start_pos,
-    lineWidth=20,
+    win=exp_win,
+    lineWidth=10,
     lineColor=[-1, -1, -1],
     fillColor=None,
     vertices=frame_coords,
@@ -73,18 +77,28 @@ frame_stim = visual.ShapeStim(
     autoDraw=False
 )
 
-fix_size = 1
-fix_size_px = deg2pix(fix_size, exp_mon)
-fix = visual.GratingStim(win=win, mask="cross", size=fix_size_px, sf=0, color=[-1, -1, -1])
+# Target
+top_probe = visual.Circle(
+    win=exp_win,
+    lineColor=0,
+    contrast=1,
+    lineWidth=3,
+    autoLog=False
+)
+bot_probe = visual.Circle(
+    win=exp_win,
+    lineColor=0,
+    contrast=1,
+    lineWidth=3,
+    autoLog=False
+)
 
-probe_size = .8
-probe_xshift = deg2pix(2, exp_mon)
-probe_yshift = deg2pix(2, exp_mon)
-probe_size_px = deg2pix(probe_size, exp_mon)
-probe_top_pos = [probe_xshift, frame_stim.pos[1] + probe_yshift]
-probe_bot_pos = [-probe_xshift, frame_stim.pos[1] - probe_yshift]
-probe_top = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
-probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contrast=.6)
+# Concentric fixation circles
+inner_fix = visual.Circle(win=exp_win, radius=0.1, lineColor='black', autoLog=False)
+outer_fix = visual.Circle(win=exp_win, radius=0.25, lineColor='black', autoLog=False)
+
+# Text message
+msg_stim = visual.TextStim(win=exp_win, wrapWidth=30, height=.8, autoLog=False)
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -92,12 +106,16 @@ probe_bot = visual.Circle(win=win, radius=probe_size_px, fillColor='red', contra
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
-# timing
-trial_clock = core.Clock()
-block_clock = core.Clock()
+# Instructions
+inst_msg = "Maintain fixation while the frame is moving.\n\n" \
+      "Wait for a \033[94mBLUE target to flash inside the frame.\n\n" \
+      "Make a saccade to where you saw the \033[94mBLUE target.\n\n" \
+      "Do it all over again.\n\n" \
+      "Press the spacebar to start the experiment..."
+out_msg = "Thank you for participating!"
 
-# Blocks
-conditions = []
+# Conditions
+conds = []
 
 motion_cycles = np.array([.7])
 motion_cycles_fr = motion_cycles * mon_specs["refresh_rate"]
@@ -141,10 +159,33 @@ for block in range(n_blocks):
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
+# Initialize parameters
+# frame
+path_len = 10  # degrees
+path_len_px = deg2pix(path_len, monitor=exp_mon)
+frame_yshift = 8
+frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, exp_mon)]
+
+# probes
+probe_size = .8
+probe_size_px = deg2pix(probe_size, exp_mon)
+
+# other stim
+fix_pos = [0, 0]
+
+# timing
+trial_clock = core.Clock()
+block_clock = core.Clock()
+
 # Runtime parameters
 n_stabilize = 5  # number of transitions needed to stabilize the effect
 flash_frames = 4  # frames
-win.mouseVisible = False
+
+motion_dur = 700  # ms
+n_scr_frames = int(motion_dur * mon_specs["refresh_rate"])
+
+# Run
+exp_win.mouseVisible = False
 
 # loop blocks
 for block_idx, block in enumerate(block_handlers):
