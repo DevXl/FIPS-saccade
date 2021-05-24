@@ -67,8 +67,8 @@ frame_coords = [
 ]
 frame_stim = visual.ShapeStim(
     win=exp_win,
-    lineWidth=10,
-    lineColor=[-1, -1, -1],
+    lineWidth=deg2pix(10, exp_mon),
+    lineColor=-1,
     fillColor=None,
     vertices=frame_coords,
     closeShape=True,
@@ -80,25 +80,23 @@ frame_stim = visual.ShapeStim(
 # Target
 top_probe = visual.Circle(
     win=exp_win,
-    lineColor=0,
-    contrast=1,
-    lineWidth=3,
+    lineColor=-1,
+    lineWidth=deg2pix(5, exp_mon),
     autoLog=False
 )
 bot_probe = visual.Circle(
     win=exp_win,
-    lineColor=0,
-    contrast=1,
-    lineWidth=3,
+    lineColor=-1,
+    lineWidth=deg2pix(5, exp_mon),
     autoLog=False
 )
 
 # Concentric fixation circles
-inner_fix = visual.Circle(win=exp_win, radius=0.1, lineColor='black', autoLog=False)
-outer_fix = visual.Circle(win=exp_win, radius=0.25, lineColor='black', autoLog=False)
+inner_fix = visual.Circle(win=exp_win, radius=deg2pix(.1, exp_mon), lineColor=-1, autoLog=False)
+outer_fix = visual.Circle(win=exp_win, radius=deg2pix(0.25, exp_mon), lineColor=-1, autoLog=False)
 
 # Text message
-msg_stim = visual.TextStim(win=exp_win, wrapWidth=30, height=.8, autoLog=False)
+msg_stim = visual.TextStim(win=exp_win, wrapWidth=deg2pix(30, exp_mon), height=deg2pix(.8, exp_mon), autoLog=False)
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -107,51 +105,66 @@ msg_stim = visual.TextStim(win=exp_win, wrapWidth=30, height=.8, autoLog=False)
 # =========================================================================== #
 
 # Instructions
-inst_msg = "Maintain fixation while the frame is moving.\n\n" \
-      "Wait for a \033[94mBLUE target to flash inside the frame.\n\n" \
+inst_msg = "Maintain fixation during each trial.\n\n" \
+      "Wait for a \033[94mBLUE target to flash on the screen.\n\n" \
       "Make a saccade to where you saw the \033[94mBLUE target.\n\n" \
       "Do it all over again.\n\n" \
       "Press the spacebar to start the experiment..."
-out_msg = "Thank you for participating!"
+end_msg = "Thank you for participating!"
+
 
 # Conditions
-conds = []
+frame_stay = ['on', 'off']  # whether the frame stays on the screen during the flash
+flash_durs = [2, 4, 6, 8, 10]  # duration of probes flashing
 
-motion_cycles = np.array([.7])
-motion_cycles_fr = motion_cycles * mon_specs["refresh_rate"]
+n_blocks = 4
+n_trials_per_cond = 12
+n_trials = n_trials_per_cond * (len(frame_stay) * len(flash_durs))  # total number of trials in a block
+total_trials = n_trials * n_blocks  # number of all trials in one experiment session
 
-speeds = path_len / motion_cycles_fr  # deg/fr
-speeds_px = path_len_px / motion_cycles_fr  # px/fr
+# Data handler
+# columns of experiment dataframe
+cols = [
+    "trial_type", "stay_status", "flash_dur", "stim_side", "block", "trial", "success",
+    "target_x", "target_y", "sacc_start_x", "sacc_start_y", "sacc_end_x", "sacc_end_y",
+    "sacc_dur", "sacc_delay", "target_ud", "n_cue", "sub", "ses", "run", "task", "exp"
+]
 
-quadrants = [1, 2]
-quad_shift = deg2pix(8, exp_mon)
+# loop through conditions, make every permutation, and save it to a numpy array
+rows = None
+for st in frame_stay:
+    for dur in flash_durs:
+        row = np.array([
+            np.NaN, st, dur, np.NaN, np.NaN, np.NaN, np.NaN,
+            np.NaN, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN,
+            np.NaN, np.NaN, np.NaN, np.NaN, sub_id, ses, run, TASK, EXP
+            ])
+        if rows is None:
+            rows = row
+        else:
+            rows = np.vstack((rows, row))
 
-for quad in quadrants:
-    for i, speed in enumerate(speeds):
-        conditions.append(
-            {
-                "quadrant": quad,
-                "speed": np.round(speed, 2),
-                "speed_px": np.round(speeds_px[i], 2),
-                "motion_cycle": motion_cycles[i] * 1000
-            }
-        )
+# blocks and trials
+blocks = None
+for b in range(1, n_blocks + 1):
 
-block_handlers = []
-# n_blocks = 12
-n_blocks = 1
-# total_trials = 384
-total_trials = 50
+    # repeat conditions for however many trials
+    block = np.repeat(rows, n_trials_per_cond, axis=0)
 
-for block in range(n_blocks):
-    b = data.TrialHandler(
-        name=f"Block_N{block}",
-        trialList=conditions,
-        nReps=total_trials/n_blocks,
-        method="fullRandom",
-        originPath=-1
-        )
-    block_handlers.append(b)
+    # shuffle them
+    np.random.shuffle(block)  # this preserves the order within row and just shuffles the rows
+
+    # sanity check
+    assert block.shape == (len(frame_stay) * len(flash_durs) * n_trials_per_cond, len(cols))
+
+    # add the block and trial labels
+    block[:, 4] = b
+    block[:, 5] = np.arange(1, n_trials + 1)  # set trials to a list of ordered numbers
+
+    if blocks is None:
+        blocks = block
+    else:
+        blocks = np.vstack((blocks, block))
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
@@ -159,46 +172,80 @@ for block in range(n_blocks):
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
 
-# Initialize parameters
-# frame
-path_len = 10  # degrees
-path_len_px = deg2pix(path_len, monitor=exp_mon)
-frame_yshift = 8
-frame_start_pos = [-path_len_px/2, deg2pix(frame_yshift, exp_mon)]
+# Initialize parameter
 
-# probes
-probe_size = .8
+# Stimulus
+probe_size = 1.2
 probe_size_px = deg2pix(probe_size, exp_mon)
+probe_color = .1
+probe_pos_shift = frame_size_px - probe_size_px / 2  # so the distance between them is as tall as the frame
 
-# other stim
+frame_pos_shift = deg2pix(5, exp_mon)  # how many degrees in both x and y the initial position of frame shifts from fixation
+
 fix_pos = [0, 0]
 
-# timing
-trial_clock = core.Clock()
-block_clock = core.Clock()
+top_probe.size = probe_size_px
+top_probe.fillColor = [probe_color, -1, -1]
 
-# Runtime parameters
-n_stabilize = 5  # number of transitions needed to stabilize the effect
-flash_frames = 4  # frames
+bot_probe.size = probe_size_px
+bot_probe.fillColor = [probe_color, -1, -1]
 
-motion_dur = 700  # ms
-n_scr_frames = int(motion_dur * mon_specs["refresh_rate"])
+msg_stim.pos = fix_pos
+inner_fix.pos = fix_pos
+outer_fix.pos = fix_pos
+
+# Runtime
+sides = ['L', 'R']  # 1st and 2nd quadrants
+
+motion_cycle_dur = 1000  # seconds
+motion_cycle = int(motion_cycle_dur * mon_specs["refresh_rate"]/1000)  # in frames
+
+motion_len = 8  # length of the path that the frame moves in degrees
+motion_len_px = deg2pix(motion_len, monitor=exp_mon)  # in pixels
+frame_speed = motion_len_px / motion_cycle  # pixel/frame
+
+n_stabilize = 4  # number of transitions needed to stabilize the effect
 
 # Run
+# clock it
+block_clock = core.Clock()
+exp_clock = core.Clock()
+t_start = exp_clock.getTime()
+block_dur = 0  # just initializing
+
+# show instruction message
+msg_stim.text = inst_msg
+msg_stim.draw()
+exp_win.flip()
+event.waitKeys(keyList=['space'])
 exp_win.mouseVisible = False
 
 # loop blocks
-for block_idx, block in enumerate(block_handlers):
+for block in range(n_blocks):
 
-    print(f"============> Block number {block_idx + 1}")
+    print(f"============> Block number {block + 1}")
+
+    # time it
+    ts_block = block_clock.getTime()
+
+    # text message
+    remain_blocks = n_blocks - block
+    if block:  # no need to show it on the first block
+        btw_blocks_msg = f"You finished block number {block}.\n\n" \
+                         f"{remain_blocks} more block(s) (~{block_dur * remain_blocks} mins) to go!\n\n" \
+                         "When you are ready, press the SPACEBAR to continue..."
+        msg_stim.text = btw_blocks_msg
+        msg_stim.draw()
+        exp_win.flip()
+        event.waitKeys(keyList=['space'])
 
     # calibrate the eye tracker
     tracker.calibrate()
 
-    win.recordFrameIntervals = True
+    exp_win.recordFrameIntervals = True
     block_clock.reset()
 
-    for n, trial in enumerate(block):
+    for trial in range(n_trials):
 
         # # drift correction
         # drift = True
@@ -207,10 +254,25 @@ for block_idx, block in enumerate(block_handlers):
         #     win.flip()
         #     drift = tracker.drift_correction()
 
-        # Trial params
+        # get trial index
+        trial_row = (block * n_trials) + trial
+
+        # set trial conditions
+        frame_side = np.random.choice(sides)
+        if frame_side == "L":
+            fpos = [-frame_pos_shift, frame_pos_shift]  # frame is at the first quadrant
+            tpos = [-frame_pos_shift - offset, frame_pos_shift + probe_pos_shift] # offset on x coords and shift on y
+            bpos = [-frame_pos_shift + offset, frame_pos_shift - probe_pos_shift]
+        else:
+            fpos = [frame_pos_shift, frame_pos_shift]  # frame is at the first quadrant
+            tpos = [frame_pos_shift - offset, frame_pos_shift + probe_pos_shift]  # offset on x coords and shift on y
+            bpos = [frame_pos_shift + offset, frame_pos_shift - probe_pos_shift]
+
+        block[trial_row, 3] = frame_side
+
         n_cue = np.random.randint(4, 10)  # between 4 and 9
         delay = np.round(np.random.uniform(400, 600))
-        frame_stim.pos = frame_start_pos
+
         probe_top.pos = probe_top_pos
         probe_bot.pos = probe_bot_pos
         catch = np.random.random() < .1  # 10% catch trials
