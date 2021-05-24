@@ -62,7 +62,7 @@ frame_coords = [
 frame_stim = visual.ShapeStim(
     win=exp_win,
     lineWidth=10,
-    lineColor=[-1, -1, -1],
+    lineColor=-1,
     fillColor=None,
     vertices=frame_coords,
     closeShape=True,
@@ -109,18 +109,20 @@ bot_match = visual.Circle(
 )
 
 # Instructions
-msg_stim = visual.TextStim(win=exp_win, wrapWidth=20, autoLog=False)
-inst_msg = "Compare the position of RED CIRCLES to BLACK CIRCLES.\n\n" \
-      "If they MATCH, press the 'M' key on the keyboard.\n\n" \
-      "If they are DIFFERENT, press the 'D' key.\n\n" \
-      "Press the SPACEBAR to start the experiment."
-out_msg = "Thank you for participating!"
+msg_stim = visual.TextStim(win=exp_win, wrapWidth=30, height=.8, autoLog=False)
 
 # =========================================================================== #
 # --------------------------------------------------------------------------- #
 # ------------------------------ ! PROCEDURE -------------------------------- #
 # --------------------------------------------------------------------------- #
 # =========================================================================== #
+
+# Instructions
+inst_msg = "Compare the position of RED CIRCLES to BLACK CIRCLES.\n\n" \
+      "If they MATCH, press the 'M' key on the keyboard.\n\n" \
+      "If they are DIFFERENT, press the 'D' key.\n\n" \
+      "Press the SPACEBAR to start the experiment."
+out_msg = "Thank you for participating!"
 
 # Blocks and trials
 n_trials = 50
@@ -178,7 +180,7 @@ motion_cycle = int(motion_cycle_dur * mon_specs["refresh_rate"]/1000)  # in fram
 motion_len = 8  # length of the path that the frame moves in degrees
 frame_speed = motion_len / motion_cycle  # deg/f
 
-n_stabilize = 1  # number of transitions needed to stabilize the effect
+n_stabilize = 4  # number of transitions needed to stabilize the effect
 
 flash_frames = 5  # number of frames to show the probe
 
