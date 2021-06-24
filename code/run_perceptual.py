@@ -31,12 +31,17 @@ EXP = "FIPSPerceptual"
 TASK = "psycphys"
 ROOTDIR = Path(__file__).resolve().parent.parent  # find the current file and go up too root dir
 TASKDIR = setup_path(sub_id, ROOTDIR, TASK)
+
+# file names
 run_file = TASKDIR / f"sub-{sub_id:02d}_ses-{ses}_run-{run}_task-{TASK}_exp-{EXP}_staircase"
-frames_file = str(run_file) + "FrameIntervals.log"
-log_file = str(run_file) + "RuntimeLog.log"
+frames_file = str(run_file) + "_frame-intervals.log"
+log_file = str(run_file) + "_runtime.log"
+np_file = str(run_file) + '.npy'
+pd_file = str(run_file) + '.csv'
+pickle_file = str(run_file)
 
 # Monitor
-mon_name = 'RaZerBlade'
+mon_name = 'lab'
 mon_specs = get_monitors(mon_name)
 exp_mon = monitors.Monitor(name=mon_name, width=mon_specs["size_cm"][0], distance=mon_specs["dist"])
 exp_mon.setSizePix(mon_specs["size_px"])
@@ -151,7 +156,7 @@ probe_size = 1.2
 probe_color = [.1, -1, -1]
 fix_pos = [0, 0]
 probe_pos_shift = frame_size - probe_size / 2  # so the distance between them is as tall as the frame
-match_pos_size = probe_size / 2
+match_size = probe_size / 2
 match_pos_shift = probe_pos_shift / 2
 
 top_probe.size = probe_size
@@ -160,10 +165,10 @@ top_probe.fillColor = probe_color
 bot_probe.size = probe_size
 bot_probe.fillColor = probe_color
 
-top_match.size = match_pos_size
+top_match.size = match_size
 top_match.pos = [fix_pos[0], fix_pos[1] + match_pos_shift]
 
-bot_match.size = match_pos_size
+bot_match.size = match_size
 bot_match.pos = [fix_pos[0], fix_pos[1] - match_pos_shift]
 
 msg_stim.pos = fix_pos
@@ -182,7 +187,7 @@ frame_speed = motion_len / motion_cycle  # deg/f
 
 n_stabilize = 4  # number of transitions needed to stabilize the effect
 
-flash_frames = 5  # number of frames to show the probe
+flash_frames = 3  # number of frames to show the probe
 
 # clock it
 exp_clock = core.Clock()
@@ -288,15 +293,18 @@ exp_data = {
     "resp": stairs.data
 }
 df = pd.DataFrame(exp_data)
-df.to_csv(str(run_file) + ".csv", index=False)
+df.to_csv(pd_file, index=False)
 
 # save to pickle
-stairs.saveAsPickle(str(run_file))
+stairs.saveAsPickle(pickle_file)
 
 # save numpy
 np_data = np.array([stairs.intensities, stairs.data]).T  # first column is intensities and second column is responses
-np.save(str(run_file) + ".npy", np_data)
+np.save(np_file, np_data)
 
-# end
+# log file
+
+
+# End
 exp_win.close()
 core.quit()

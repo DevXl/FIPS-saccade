@@ -3,6 +3,7 @@
 Helper functions for FIPS experiments
 """
 
+
 def setup_path(sub, root, task):
     """
     Sets up paths and directories for experiment
@@ -34,6 +35,7 @@ def setup_path(sub, root, task):
         task_dir.mkdir()
 
     return task_dir
+
 
 def get_monitors(mon_name):
     """
